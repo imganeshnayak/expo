@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,18 @@ import {
   TouchableOpacity,
   Image,
   Switch,
+  Modal,
+  TextInput,
+  Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, Gift, Bookmark, Share2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, Wallet, Plus, ArrowDownToLine, TrendingUp, TrendingDown, X, Award, Users, Trophy, Zap, Brain, Sparkles } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
+import { useWalletStore, TransactionType } from '@/store/walletStore';
+import { useRideStore } from '@/store/rideStore';
+import { useLoyaltyStore } from '@/store/loyaltyStore';
 
 const userData = {
   name: 'Sarah Johnson',
@@ -50,14 +58,89 @@ const recentActivity = [
 ];
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [locationEnabled, setLocationEnabled] = React.useState(true);
+  const router = useRouter();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [favoriteMerchants, setFavoriteMerchants] = useState<string[]>(['Mario\'s Pizza Palace', 'Urban Brew Cafe']);
+  
+  const { balance, transactions, addMoney, withdraw } = useWalletStore();
+  const { rideHistory } = useRideStore();
+  const { stampCards, totalStampsEarned, totalRewardsRedeemed } = useLoyaltyStore();
+
+  const handleAddMoney = () => {
+    const value = parseFloat(amount);
+    if (value && value > 0) {
+      addMoney(value);
+      setAmount('');
+      setShowAddMoney(false);
+      Alert.alert('Success', `₹${value} added to your wallet!`);
+    }
+  };
+
+  const handleWithdraw = () => {
+    const value = parseFloat(amount);
+    if (value && value > 0) {
+      if (value <= balance) {
+        withdraw(value);
+        setAmount('');
+        setShowWithdraw(false);
+        Alert.alert('Success', `₹${value} withdrawn to your bank!`);
+      } else {
+        Alert.alert('Error', 'Insufficient balance');
+      }
+    }
+  };
+
+  const toggleFavoriteMerchant = (merchant: string) => {
+    setFavoriteMerchants(prev =>
+      prev.includes(merchant)
+        ? prev.filter(m => m !== merchant)
+        : [...prev, merchant]
+    );
+  };
+
+  const getTransactionColor = (type: TransactionType) => {
+    switch (type) {
+      case 'CASHBACK':
+        return theme.colors.success;
+      case 'RIDE_PAYMENT':
+        return theme.colors.error;
+      case 'WALLET_TOPUP':
+        return '#45B7D1';
+      case 'WITHDRAWAL':
+        return '#F7B731';
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
+
+  const getTransactionIcon = (type: TransactionType) => {
+    switch (type) {
+      case 'CASHBACK':
+        return Gift;
+      case 'RIDE_PAYMENT':
+        return TrendingDown;
+      case 'WALLET_TOPUP':
+        return TrendingUp;
+      case 'WITHDRAWAL':
+        return ArrowDownToLine;
+      default:
+        return Gift;
+    }
+  };
 
   const MenuSection = ({ title, items }: { title: string; items: any[] }) => (
     <View style={styles.menuSection}>
       <Text style={styles.menuSectionTitle}>{title}</Text>
       {items.map((item, index) => (
-        <TouchableOpacity key={index} style={styles.menuItem}>
+        <TouchableOpacity 
+          key={index} 
+          style={styles.menuItem}
+          onPress={item.onPress}
+          activeOpacity={item.onPress ? 0.7 : 1}>
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIcon, { backgroundColor: item.iconBg }]}>
               <item.icon size={20} color={item.iconColor} />
@@ -121,8 +204,103 @@ export default function ProfileScreen() {
 
   const menuSections = [
     {
+      title: 'AI & Personalization',
+      items: [
+        {
+          icon: Brain,
+          iconBg: 'rgba(139, 92, 246, 0.1)',
+          iconColor: '#8B5CF6',
+          title: 'AI Profile',
+          subtitle: 'Your personality & insights',
+          onPress: () => router.push('/ai-profile'),
+        },
+        {
+          icon: Sparkles,
+          iconBg: 'rgba(139, 92, 246, 0.1)',
+          iconColor: '#8B5CF6',
+          title: 'AI Recommendations',
+          subtitle: 'Personalized for you',
+          onPress: () => router.push('/ai-recommendations'),
+        },
+      ],
+    },
+    {
+      title: 'Coupons & Savings',
+      items: [
+        {
+          icon: Gift,
+          iconBg: 'rgba(245, 158, 11, 0.1)',
+          iconColor: '#F59C0B',
+          title: 'Coupon Discovery',
+          subtitle: 'Find viral deals & stack coupons',
+          onPress: () => router.push('/coupon-discovery'),
+        },
+        {
+          icon: Trophy,
+          iconBg: 'rgba(16, 185, 129, 0.1)',
+          iconColor: '#10B981',
+          title: 'Savings Dashboard',
+          subtitle: 'Track your savings & achievements',
+          onPress: () => router.push('/savings-dashboard'),
+        },
+      ],
+    },
+    {
+      title: 'Social & Friends',
+      items: [
+        {
+          icon: Users,
+          iconBg: 'rgba(0, 217, 163, 0.1)',
+          iconColor: theme.colors.primary,
+          title: 'Social Hub',
+          subtitle: 'Friends, feed, and groups',
+          onPress: () => router.push('/social'),
+        },
+        {
+          icon: Trophy,
+          iconBg: 'rgba(245, 158, 11, 0.1)',
+          iconColor: '#F59C0B',
+          title: 'Leaderboard',
+          subtitle: 'Compete with friends',
+          onPress: () => router.push('/leaderboard'),
+        },
+        {
+          icon: Gift,
+          iconBg: 'rgba(16, 185, 129, 0.1)',
+          iconColor: '#10B981',
+          title: 'Refer & Earn',
+          subtitle: 'Invite friends, earn ₹100 each',
+          onPress: () => router.push('/referral'),
+        },
+        {
+          icon: Zap,
+          iconBg: 'rgba(139, 92, 246, 0.1)',
+          iconColor: '#8B5CF6',
+          title: 'Groups',
+          subtitle: 'Plan together, save more',
+          onPress: () => router.push('/groups'),
+        },
+      ],
+    },
+    {
       title: 'My Activity',
       items: [
+        {
+          icon: Award,
+          iconBg: 'rgba(243, 156, 18, 0.1)',
+          iconColor: '#F39C12',
+          title: 'Loyalty Cards',
+          subtitle: `${stampCards.length} active cards, ${totalStampsEarned} stamps earned`,
+          onPress: () => router.push('/loyalty'),
+        },
+        {
+          icon: CreditCard,
+          iconBg: 'rgba(139, 92, 246, 0.1)',
+          iconColor: '#8B5CF6',
+          title: 'Universal Loyalty',
+          subtitle: 'Manage all your loyalty programs',
+          onPress: () => router.push('/universal-loyalty'),
+        },
         {
           icon: Heart,
           iconBg: 'rgba(0, 217, 163, 0.1)',
@@ -135,14 +313,7 @@ export default function ProfileScreen() {
           iconBg: 'rgba(0, 217, 163, 0.1)',
           iconColor: theme.colors.primary,
           title: 'Favorite Businesses',
-          subtitle: `${userData.favoriteBusinesses} businesses`,
-        },
-        {
-          icon: Gift,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Total Savings',
-          subtitle: `$${userData.totalSavings} saved`,
+          subtitle: `${favoriteMerchants.length} businesses`,
         },
       ],
     },
@@ -235,16 +406,95 @@ export default function ProfileScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>{userData.savedDeals}</Text>
+              <Text style={styles.statLabel}>Deals</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{rideHistory.length}</Text>
+              <Text style={styles.statLabel}>Rides</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>₹{userData.totalSavings}</Text>
               <Text style={styles.statLabel}>Saved</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>${userData.totalSavings}</Text>
-              <Text style={styles.statLabel}>Saved</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{userData.favoriteBusinesses}</Text>
+              <Text style={styles.statNumber}>{favoriteMerchants.length}</Text>
               <Text style={styles.statLabel}>Favorites</Text>
             </View>
+          </View>
+        </View>
+
+        {/* Ride History */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Ride History</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rideHistoryScroll}>
+            {rideHistory.length > 0 ? (
+              rideHistory.slice(-5).reverse().map(ride => (
+                <View key={ride.id} style={styles.rideCard}>
+                  <View style={styles.rideHeader}>
+                    <Text style={styles.rideLogo}>{ride.type === 'auto' ? '🛺' : ride.type === 'bus' ? '🚌' : '🚗'}</Text>
+                    <View style={styles.rideInfo}>
+                      <Text style={styles.rideProvider}>{ride.providerName}</Text>
+                      <Text style={styles.rideStatus}>{ride.status}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.rideDetails}>
+                    <View style={styles.rideLocation}>
+                      <MapPin size={12} color={theme.colors.textSecondary} />
+                      <Text style={styles.rideAddress} numberOfLines={1}>{ride.pickup.address}</Text>
+                    </View>
+                    <View style={styles.rideLocation}>
+                      <MapPin size={12} color={theme.colors.primary} />
+                      <Text style={styles.rideAddress} numberOfLines={1}>{ride.destination.address}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.rideFooter}>
+                    <Text style={styles.ridePrice}>₹{ride.price}</Text>
+                    <Text style={styles.rideDate}>
+                      {new Date(ride.bookedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Car size={32} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyText}>No rides yet</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Favorite Merchants */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Favorite Merchants</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>Manage</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.merchantsList}>
+            {favoriteMerchants.map((merchant, index) => (
+              <View key={index} style={styles.merchantCard}>
+                <View style={styles.merchantIcon}>
+                  <Text style={styles.merchantEmoji}>🏪</Text>
+                </View>
+                <Text style={styles.merchantName} numberOfLines={1}>{merchant}</Text>
+                <TouchableOpacity 
+                  onPress={() => toggleFavoriteMerchant(merchant)}
+                  style={styles.favoriteButton}>
+                  <Heart 
+                    size={16} 
+                    color={theme.colors.error} 
+                    fill={theme.colors.error}
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -505,5 +755,112 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: theme.colors.error,
+  },
+  rideHistoryScroll: {
+    paddingHorizontal: 20,
+  },
+  rideCard: {
+    width: 200,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+  },
+  rideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rideLogo: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  rideInfo: {
+    flex: 1,
+  },
+  rideProvider: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
+  rideStatus: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textTransform: 'capitalize',
+  },
+  rideDetails: {
+    gap: 6,
+    marginBottom: 12,
+  },
+  rideLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rideAddress: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    flex: 1,
+  },
+  rideFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surfaceLight,
+  },
+  ridePrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  rideDate: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 60,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: theme.colors.textTertiary,
+    marginTop: 8,
+  },
+  merchantsList: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  merchantCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 12,
+  },
+  merchantIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 217, 163, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  merchantEmoji: {
+    fontSize: 20,
+  },
+  merchantName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  favoriteButton: {
+    padding: 8,
   },
 });

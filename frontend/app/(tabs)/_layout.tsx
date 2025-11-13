@@ -6,6 +6,8 @@ import {
   Search, 
   SquareStack,
   User,
+  QrCode,
+  Target,
   LucideIcon
 } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
@@ -113,6 +115,40 @@ export default function TabLayout() {
             <View style={styles.iconContainer}>
               <AnimatedTabIcon 
                 icon={SquareStack}
+                focused={focused}
+                size={size}
+                color={color}
+              />
+              <ActiveDot focused={focused} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="missions"
+        options={{
+          title: 'Missions',
+          tabBarIcon: ({ size, color, focused }) => (
+            <View style={styles.iconContainer}>
+              <AnimatedTabIcon 
+                icon={Target}
+                focused={focused}
+                size={size}
+                color={color}
+              />
+              <ActiveDot focused={focused} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="qr"
+        options={{
+          title: 'QR Code',
+          tabBarIcon: ({ size, color, focused }) => (
+            <View style={styles.iconContainer}>
+              <AnimatedTabIcon 
+                icon={QrCode}
                 focused={focused}
                 size={size}
                 color={color}
