@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Switch,
-  Modal,
-  TextInput,
   Alert,
   Animated,
+  Platform,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, Wallet, Plus, ArrowDownToLine, TrendingUp, TrendingDown, X, Award, Users, Trophy, Zap, Brain, Sparkles } from 'lucide-react-native';
+import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, TrendingUp, TrendingDown, ArrowDownToLine, Award, Users, Trophy, Zap, Brain, Sparkles, Car } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
 import { useWalletStore, TransactionType } from '@/store/walletStore';
 import { useRideStore } from '@/store/rideStore';
 import { useLoyaltyStore } from '@/store/loyaltyStore';
 
+// --- Mock Data ---
 const userData = {
   name: 'Sarah Johnson',
   email: 'sarah.johnson@email.com',
@@ -31,167 +31,151 @@ const userData = {
 };
 
 const recentActivity = [
-  {
-    id: '1',
-    type: 'deal_used',
-    title: 'Used 50% Off Pizza Deal',
-    business: "Mario's Pizza Palace",
-    date: '2 days ago',
-    savings: 12.5,
-  },
-  {
-    id: '2',
-    type: 'deal_saved',
-    title: 'Saved Spa Service Deal',
-    business: 'Serenity Wellness Spa',
-    date: '1 week ago',
-    savings: 0,
-  },
-  {
-    id: '3',
-    type: 'business_followed',
-    title: 'Followed Urban Brew Cafe',
-    business: 'Urban Brew Cafe',
-    date: '2 weeks ago',
-    savings: 0,
-  },
+  { id: '1', type: 'deal_used', title: 'Used 50% Off Pizza Deal', business: "Mario's Pizza Palace", date: '2 days ago', savings: 12.5 },
+  { id: '2', type: 'deal_saved', title: 'Saved Spa Service Deal', business: 'Serenity Wellness Spa', date: '1 week ago', savings: 0 },
+  { id: '3', type: 'business_followed', title: 'Followed Urban Brew Cafe', business: 'Urban Brew Cafe', date: '2 weeks ago', savings: 0 },
 ];
+
+// --- Micro-Animation Components ---
+
+// 1. Scale Button for Press Feedback
+const ScaleButton = ({ children, onPress, style, activeOpacity = 0.9 }) => {
+  const scaleValue = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => {
+    Animated.spring(scaleValue, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const onPressOut = () => {
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={activeOpacity}
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={{ flex: 1 }} // Ensure it fills container if needed
+    >
+      <Animated.View style={[style, { transform: [{ scale: scaleValue }] }]}>
+        {children}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// 2. Fade In View for Entry Animations
+const FadeInView = ({ children, delay = 0 }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 600,
+        delay: delay,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 600,
+        delay: delay,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
-  const [showAddMoney, setShowAddMoney] = useState(false);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [favoriteMerchants, setFavoriteMerchants] = useState<string[]>(['Mario\'s Pizza Palace', 'Urban Brew Cafe']);
-  
-  const { balance, transactions, addMoney, withdraw } = useWalletStore();
+  const [favoriteMerchants, setFavoriteMerchants] = useState(['Mario\'s Pizza Palace', 'Urban Brew Cafe']);
+
   const { rideHistory } = useRideStore();
-  const { stampCards, totalStampsEarned, totalRewardsRedeemed } = useLoyaltyStore();
+  const { stampCards, totalStampsEarned } = useLoyaltyStore();
 
-  const handleAddMoney = () => {
-    const value = parseFloat(amount);
-    if (value && value > 0) {
-      addMoney(value);
-      setAmount('');
-      setShowAddMoney(false);
-      Alert.alert('Success', `₹${value} added to your wallet!`);
-    }
-  };
-
-  const handleWithdraw = () => {
-    const value = parseFloat(amount);
-    if (value && value > 0) {
-      if (value <= balance) {
-        withdraw(value);
-        setAmount('');
-        setShowWithdraw(false);
-        Alert.alert('Success', `₹${value} withdrawn to your bank!`);
-      } else {
-        Alert.alert('Error', 'Insufficient balance');
-      }
-    }
-  };
-
-  const toggleFavoriteMerchant = (merchant: string) => {
+  const toggleFavoriteMerchant = (merchant) => {
     setFavoriteMerchants(prev =>
-      prev.includes(merchant)
-        ? prev.filter(m => m !== merchant)
-        : [...prev, merchant]
+      prev.includes(merchant) ? prev.filter(m => m !== merchant) : [...prev, merchant]
     );
   };
 
-  const getTransactionColor = (type: TransactionType) => {
-    switch (type) {
-      case 'CASHBACK':
-        return theme.colors.success;
-      case 'RIDE_PAYMENT':
-        return theme.colors.error;
-      case 'WALLET_TOPUP':
-        return '#45B7D1';
-      case 'WITHDRAWAL':
-        return '#F7B731';
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
-
-  const getTransactionIcon = (type: TransactionType) => {
-    switch (type) {
-      case 'CASHBACK':
-        return Gift;
-      case 'RIDE_PAYMENT':
-        return TrendingDown;
-      case 'WALLET_TOPUP':
-        return TrendingUp;
-      case 'WITHDRAWAL':
-        return ArrowDownToLine;
-      default:
-        return Gift;
-    }
-  };
-
-  const MenuSection = ({ title, items }: { title: string; items: any[] }) => (
+  const MenuSection = ({ title, items }) => (
     <View style={styles.menuSection}>
       <Text style={styles.menuSectionTitle}>{title}</Text>
       {items.map((item, index) => (
-        <TouchableOpacity 
-          key={index} 
-          style={styles.menuItem}
-          onPress={item.onPress}
-          activeOpacity={item.onPress ? 0.7 : 1}>
-          <View style={styles.menuItemLeft}>
-            <View style={[styles.menuIcon, { backgroundColor: item.iconBg }]}>
-              <item.icon size={20} color={item.iconColor} />
+        <ScaleButton key={index} onPress={item.onPress}>
+          <View style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: item.iconBg }]}>
+                <item.icon size={20} color={item.iconColor} />
+              </View>
+              <View>
+                <Text style={styles.menuItemTitle}>{item.title}</Text>
+                {item.subtitle && (
+                  <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+                )}
+              </View>
             </View>
-            <View>
-              <Text style={styles.menuItemTitle}>{item.title}</Text>
-              {item.subtitle && (
-                <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+            <View style={styles.menuItemRight}>
+              {item.toggle !== undefined ? (
+                <Switch
+                  value={item.toggle}
+                  onValueChange={item.onToggle}
+                  trackColor={{ false: theme.colors.surfaceLight, true: theme.colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              ) : (
+                <ChevronRight size={18} color={theme.colors.textTertiary} />
               )}
             </View>
           </View>
-          <View style={styles.menuItemRight}>
-            {item.toggle !== undefined ? (
-              <Switch
-                value={item.toggle}
-                onValueChange={item.onToggle}
-                trackColor={{ false: theme.colors.surfaceLight, true: theme.colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            ) : (
-              <ChevronRight size={20} color={theme.colors.textSecondary} />
-            )}
-          </View>
-        </TouchableOpacity>
+        </ScaleButton>
       ))}
     </View>
   );
 
-  const ActivityItem = ({ activity }: { activity: typeof recentActivity[0] }) => {
+  const ActivityItem = ({ activity }) => {
     const getActivityIcon = () => {
       switch (activity.type) {
-        case 'deal_used':
-          return <Gift size={16} color={theme.colors.primary} />;
-        case 'deal_saved':
-          return <Bookmark size={16} color={theme.colors.primary} />;
-        case 'business_followed':
-          return <Heart size={16} color={theme.colors.primary} />;
-        default:
-          return <Star size={16} color={theme.colors.primary} />;
+        case 'deal_used': return <Gift size={16} color={theme.colors.primary} />;
+        case 'deal_saved': return <Bookmark size={16} color={theme.colors.primary} />;
+        case 'business_followed': return <Heart size={16} color={theme.colors.primary} />;
+        default: return <Star size={16} color={theme.colors.primary} />;
       }
     };
 
     return (
       <View style={styles.activityItem}>
-        <View style={styles.activityIcon}>
-          {getActivityIcon()}
-        </View>
+        <View style={styles.activityIcon}>{getActivityIcon()}</View>
         <View style={styles.activityContent}>
           <Text style={styles.activityTitle}>{activity.title}</Text>
-          <Text style={styles.activityBusiness}>{activity.business}</Text>
-          <Text style={styles.activityDate}>{activity.date}</Text>
+          <View style={styles.activityMetaRow}>
+            <Text style={styles.activityBusiness}>{activity.business}</Text>
+            <Text style={styles.dotSeparator}>•</Text>
+            <Text style={styles.activityDate}>{activity.date}</Text>
+          </View>
         </View>
         {activity.savings > 0 && (
           <View style={styles.savingsTag}>
@@ -206,326 +190,188 @@ export default function ProfileScreen() {
     {
       title: 'AI & Personalization',
       items: [
-        {
-          icon: Brain,
-          iconBg: 'rgba(139, 92, 246, 0.1)',
-          iconColor: '#8B5CF6',
-          title: 'AI Profile',
-          subtitle: 'Your personality & insights',
-          onPress: () => router.push('/ai-profile'),
-        },
-        {
-          icon: Sparkles,
-          iconBg: 'rgba(139, 92, 246, 0.1)',
-          iconColor: '#8B5CF6',
-          title: 'AI Recommendations',
-          subtitle: 'Personalized for you',
-          onPress: () => router.push('/ai-recommendations'),
-        },
+        { icon: Brain, iconBg: 'rgba(139, 92, 246, 0.1)', iconColor: '#8B5CF6', title: 'AI Profile', subtitle: 'Your personality & insights', onPress: () => router.push('/ai-profile') },
+        { icon: Sparkles, iconBg: 'rgba(139, 92, 246, 0.1)', iconColor: '#8B5CF6', title: 'AI Recommendations', subtitle: 'Personalized for you', onPress: () => router.push('/ai-recommendations') },
       ],
     },
     {
       title: 'Coupons & Savings',
       items: [
-        {
-          icon: Gift,
-          iconBg: 'rgba(245, 158, 11, 0.1)',
-          iconColor: '#F59C0B',
-          title: 'Coupon Discovery',
-          subtitle: 'Find viral deals & stack coupons',
-          onPress: () => router.push('/coupon-discovery'),
-        },
-        {
-          icon: Trophy,
-          iconBg: 'rgba(16, 185, 129, 0.1)',
-          iconColor: '#10B981',
-          title: 'Savings Dashboard',
-          subtitle: 'Track your savings & achievements',
-          onPress: () => router.push('/savings-dashboard'),
-        },
-      ],
-    },
-    {
-      title: 'Social & Friends',
-      items: [
-        {
-          icon: Users,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Social Hub',
-          subtitle: 'Friends, feed, and groups',
-          onPress: () => router.push('/social'),
-        },
-        {
-          icon: Trophy,
-          iconBg: 'rgba(245, 158, 11, 0.1)',
-          iconColor: '#F59C0B',
-          title: 'Leaderboard',
-          subtitle: 'Compete with friends',
-          onPress: () => router.push('/leaderboard'),
-        },
-        {
-          icon: Gift,
-          iconBg: 'rgba(16, 185, 129, 0.1)',
-          iconColor: '#10B981',
-          title: 'Refer & Earn',
-          subtitle: 'Invite friends, earn ₹100 each',
-          onPress: () => router.push('/referral'),
-        },
-        {
-          icon: Zap,
-          iconBg: 'rgba(139, 92, 246, 0.1)',
-          iconColor: '#8B5CF6',
-          title: 'Groups',
-          subtitle: 'Plan together, save more',
-          onPress: () => router.push('/groups'),
-        },
+        { icon: Gift, iconBg: 'rgba(245, 158, 11, 0.1)', iconColor: '#F59C0B', title: 'Coupon Discovery', subtitle: 'Find viral deals', onPress: () => router.push('/coupon-discovery') },
+        { icon: Trophy, iconBg: 'rgba(16, 185, 129, 0.1)', iconColor: '#10B981', title: 'Savings Dashboard', subtitle: 'Track achievements', onPress: () => router.push('/savings-dashboard') },
       ],
     },
     {
       title: 'My Activity',
       items: [
-        {
-          icon: Award,
-          iconBg: 'rgba(243, 156, 18, 0.1)',
-          iconColor: '#F39C12',
-          title: 'Loyalty Cards',
-          subtitle: `${stampCards.length} active cards, ${totalStampsEarned} stamps earned`,
-          onPress: () => router.push('/loyalty'),
-        },
-        {
-          icon: CreditCard,
-          iconBg: 'rgba(139, 92, 246, 0.1)',
-          iconColor: '#8B5CF6',
-          title: 'Universal Loyalty',
-          subtitle: 'Manage all your loyalty programs',
-          onPress: () => router.push('/universal-loyalty'),
-        },
-        {
-          icon: Heart,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Saved Deals',
-          subtitle: `${userData.savedDeals} deals saved`,
-        },
-        {
-          icon: Bookmark,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Favorite Businesses',
-          subtitle: `${favoriteMerchants.length} businesses`,
-        },
+        { icon: Award, iconBg: 'rgba(243, 156, 18, 0.1)', iconColor: '#F39C12', title: 'Loyalty Cards', subtitle: `${stampCards.length} active cards`, onPress: () => router.push('/loyalty') },
       ],
     },
     {
       title: 'Preferences',
       items: [
-        {
-          icon: Bell,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Push Notifications',
-          subtitle: 'Get deal alerts',
-          toggle: notificationsEnabled,
-          onToggle: setNotificationsEnabled,
-        },
-        {
-          icon: MapPin,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Location Services',
-          subtitle: 'Find nearby deals',
-          toggle: locationEnabled,
-          onToggle: setLocationEnabled,
-        },
-        {
-          icon: Settings,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'App Settings',
-          subtitle: 'Customize your experience',
-        },
-      ],
-    },
-    {
-      title: 'Support',
-      items: [
-        {
-          icon: HelpCircle,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Help & Support',
-          subtitle: 'FAQs and contact',
-        },
-        {
-          icon: Shield,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Privacy & Security',
-          subtitle: 'Manage your data',
-        },
-        {
-          icon: Share2,
-          iconBg: 'rgba(0, 217, 163, 0.1)',
-          iconColor: theme.colors.primary,
-          title: 'Share App',
-          subtitle: 'Invite friends',
-        },
+        { icon: Bell, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Push Notifications', subtitle: 'Get deal alerts', toggle: notificationsEnabled, onToggle: setNotificationsEnabled },
+        { icon: MapPin, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Location Services', subtitle: 'Find nearby deals', toggle: locationEnabled, onToggle: setLocationEnabled },
       ],
     },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          <View style={styles.profileInfo}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <User size={32} color={theme.colors.text} />
-              </View>
-              <TouchableOpacity style={styles.editButton}>
-                <Edit3 size={14} color={theme.colors.background} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={styles.userName}>{userData.name}</Text>
-              <Text style={styles.userEmail}>{userData.email}</Text>
-              <View style={styles.locationContainer}>
-                <MapPin size={14} color={theme.colors.primary} />
-                <Text style={styles.userLocation}>{userData.location}</Text>
-              </View>
-              <Text style={styles.memberSince}>
-                Member since {userData.memberSince}
-              </Text>
-            </View>
-          </View>
-          
-          {/* Stats Cards */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{userData.savedDeals}</Text>
-              <Text style={styles.statLabel}>Deals</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{rideHistory.length}</Text>
-              <Text style={styles.statLabel}>Rides</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>₹{userData.totalSavings}</Text>
-              <Text style={styles.statLabel}>Saved</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{favoriteMerchants.length}</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
-            </View>
-          </View>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-        {/* Ride History */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ride History</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rideHistoryScroll}>
-            {rideHistory.length > 0 ? (
-              rideHistory.slice(-5).reverse().map(ride => (
-                <View key={ride.id} style={styles.rideCard}>
-                  <View style={styles.rideHeader}>
-                    <Text style={styles.rideLogo}>{ride.type === 'auto' ? '🛺' : ride.type === 'bus' ? '🚌' : '🚗'}</Text>
-                    <View style={styles.rideInfo}>
-                      <Text style={styles.rideProvider}>{ride.providerName}</Text>
-                      <Text style={styles.rideStatus}>{ride.status}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.rideDetails}>
-                    <View style={styles.rideLocation}>
-                      <MapPin size={12} color={theme.colors.textSecondary} />
-                      <Text style={styles.rideAddress} numberOfLines={1}>{ride.pickup.address}</Text>
-                    </View>
-                    <View style={styles.rideLocation}>
-                      <MapPin size={12} color={theme.colors.primary} />
-                      <Text style={styles.rideAddress} numberOfLines={1}>{ride.destination.address}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.rideFooter}>
-                    <Text style={styles.ridePrice}>₹{ride.price}</Text>
-                    <Text style={styles.rideDate}>
-                      {new Date(ride.bookedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </Text>
-                  </View>
+        {/* Header Section */}
+        <FadeInView delay={0}>
+          <View style={styles.profileHeader}>
+            <View style={styles.profileInfo}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  <User size={32} color={theme.colors.text} strokeWidth={1.5} />
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Car size={32} color={theme.colors.textTertiary} />
-                <Text style={styles.emptyText}>No rides yet</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Favorite Merchants */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Favorite Merchants</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Manage</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.merchantsList}>
-            {favoriteMerchants.map((merchant, index) => (
-              <View key={index} style={styles.merchantCard}>
-                <View style={styles.merchantIcon}>
-                  <Text style={styles.merchantEmoji}>🏪</Text>
-                </View>
-                <Text style={styles.merchantName} numberOfLines={1}>{merchant}</Text>
-                <TouchableOpacity 
-                  onPress={() => toggleFavoriteMerchant(merchant)}
-                  style={styles.favoriteButton}>
-                  <Heart 
-                    size={16} 
-                    color={theme.colors.error} 
-                    fill={theme.colors.error}
-                  />
+                <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
+                  <Edit3 size={12} color={theme.colors.background} />
                 </TouchableOpacity>
               </View>
-            ))}
+              <View style={styles.userDetails}>
+                <Text style={styles.userName}>{userData.name}</Text>
+                <Text style={styles.userEmail}>{userData.email}</Text>
+                <View style={styles.locationContainer}>
+                  <MapPin size={12} color={theme.colors.primary} />
+                  <Text style={styles.userLocation}>{userData.location}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Stats Cards */}
+            <View style={styles.statsContainer}>
+              {[
+                { num: userData.savedDeals, label: 'Deals' },
+                { num: rideHistory.length, label: 'Rides' },
+                { num: `₹${userData.totalSavings}`, label: 'Saved' },
+                { num: favoriteMerchants.length, label: 'Favs' }
+              ].map((stat, i) => (
+                <View key={i} style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stat.num}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        </FadeInView>
+
+        {/* Ride History */}
+        <FadeInView delay={100}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Ride History</Text>
+              <TouchableOpacity hitSlop={10}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rideHistoryScroll}>
+              {rideHistory.length > 0 ? (
+                rideHistory.slice(-5).reverse().map(ride => (
+                  <ScaleButton key={ride.id} style={{ marginRight: 12 }}>
+                    <View style={styles.rideCard}>
+                      <View style={styles.rideHeader}>
+                        <View style={styles.rideIconBg}>
+                          <Text style={{ fontSize: 20 }}>{ride.type === 'auto' ? '🛺' : ride.type === 'bus' ? '🚌' : '🚗'}</Text>
+                        </View>
+                        <View style={styles.rideInfo}>
+                          <Text style={styles.rideProvider}>{ride.providerName}</Text>
+                          <Text style={styles.rideStatus}>{ride.status}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.rideDetails}>
+                        <View style={styles.rideLocation}>
+                          <View style={styles.dot} />
+                          <Text style={styles.rideAddress} numberOfLines={1}>{ride.pickup.address}</Text>
+                        </View>
+                        <View style={styles.rideLine} />
+                        <View style={styles.rideLocation}>
+                          <MapPin size={10} color={theme.colors.primary} />
+                          <Text style={styles.rideAddress} numberOfLines={1}>{ride.destination.address}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.rideFooter}>
+                        <Text style={styles.ridePrice}>₹{ride.price}</Text>
+                        <Text style={styles.rideDate}>{new Date(ride.bookedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+                      </View>
+                    </View>
+                  </ScaleButton>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Car size={28} color={theme.colors.textTertiary} />
+                  <Text style={styles.emptyText}>No rides yet</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </FadeInView>
+
+        {/* Favorite Merchants */}
+        <FadeInView delay={200}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Favorite Merchants</Text>
+              <TouchableOpacity hitSlop={10}>
+                <Text style={styles.seeAllText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.merchantsList}>
+              {favoriteMerchants.map((merchant, index) => (
+                <View key={index} style={styles.merchantCard}>
+                  <View style={styles.merchantIcon}>
+                    <Text style={styles.merchantEmoji}>🏪</Text>
+                  </View>
+                  <Text style={styles.merchantName} numberOfLines={1}>{merchant}</Text>
+                  <TouchableOpacity
+                    onPress={() => toggleFavoriteMerchant(merchant)}
+                    style={styles.favoriteButton}
+                    hitSlop={10}
+                  >
+                    <Heart size={18} color={theme.colors.error} fill={theme.colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        </FadeInView>
 
         {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+        <FadeInView delay={300}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <TouchableOpacity hitSlop={10}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.activityList}>
+              {recentActivity.map(activity => (
+                <ActivityItem key={activity.id} activity={activity} />
+              ))}
+            </View>
           </View>
-          <View style={styles.activityList}>
-            {recentActivity.map(activity => (
-              <ActivityItem key={activity.id} activity={activity} />
-            ))}
-          </View>
-        </View>
+        </FadeInView>
 
         {/* Menu Sections */}
-        {menuSections.map((section, index) => (
-          <MenuSection
-            key={index}
-            title={section.title}
-            items={section.items}
-          />
-        ))}
+        <FadeInView delay={400}>
+          {menuSections.map((section, index) => (
+            <MenuSection key={index} title={section.title} items={section.items} />
+          ))}
+        </FadeInView>
 
-        {/* Sign Out Button */}
-        <TouchableOpacity style={styles.signOutButton}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {/* Sign Out */}
+        <FadeInView delay={500}>
+          <ScaleButton onPress={() => { }}>
+            <View style={styles.signOutButton}>
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </View>
+          </ScaleButton>
+        </FadeInView>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -536,50 +382,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  // Header Styles
   profileHeader: {
-    padding: 20,
-    paddingBottom: 24,
+    padding: 24,
+    paddingTop: 10,
     backgroundColor: theme.colors.surface,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 32, // Softer curve
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
+    marginBottom: 10,
   },
   profileInfo: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 24,
   },
   avatarContainer: {
-    position: 'relative',
-    marginRight: 16,
+    marginRight: 20,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0, 217, 163, 0.1)',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: theme.colors.background,
+    borderWidth: 3,
+    borderColor: 'rgba(0, 217, 163, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   editButton: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.surface,
   },
   userDetails: {
     flex: 1,
+    justifyContent: 'center',
   },
   userName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 4,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   userEmail: {
     fontSize: 14,
@@ -589,40 +446,48 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-    gap: 6,
+    backgroundColor: 'rgba(0, 217, 163, 0.08)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
   userLocation: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-  memberSince: {
     fontSize: 12,
-    color: theme.colors.textTertiary,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(0, 217, 163, 0.1)',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: theme.colors.background,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    elevation: 1,
   },
   statNumber: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 2,
-    letterSpacing: -0.3,
   },
   statLabel: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    fontWeight: '500',
   },
+
+  // Section Styles
   section: {
     marginTop: 24,
   },
@@ -630,173 +495,90 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: theme.colors.text,
     letterSpacing: -0.3,
   },
   seeAllText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: theme.colors.primary,
-  },
-  activityList: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-  },
-  activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 217, 163, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text,
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  activityBusiness: {
     fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginBottom: 2,
-  },
-  activityDate: {
-    fontSize: 12,
-    color: theme.colors.textTertiary,
-  },
-  savingsTag: {
-    backgroundColor: 'rgba(0, 217, 163, 0.15)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  savingsText: {
-    fontSize: 12,
     fontWeight: '600',
     color: theme.colors.primary,
   },
-  menuSection: {
-    marginTop: 24,
-    paddingHorizontal: 20,
-  },
-  menuSectionTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: theme.colors.textSecondary,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  menuItemTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.text,
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  menuItemSubtitle: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  menuItemRight: {
-    marginLeft: 12,
-  },
-  signOutButton: {
-    margin: 20,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-  },
-  signOutText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: theme.colors.error,
-  },
+
+  // Ride History Styles
   rideHistoryScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 10,
   },
   rideCard: {
-    width: 200,
+    width: 220,
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 12,
+    borderRadius: 20,
+    padding: 16,
+    // Subtle Border for depth
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   rideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  rideLogo: {
-    fontSize: 24,
-    marginRight: 8,
+  rideIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   rideInfo: {
     flex: 1,
   },
   rideProvider: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 2,
   },
   rideStatus: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
+    fontSize: 11,
+    color: theme.colors.primary,
+    fontWeight: '500',
     textTransform: 'capitalize',
   },
   rideDetails: {
-    gap: 6,
-    marginBottom: 12,
+    gap: 0,
+    marginBottom: 16,
+  },
+  rideLine: {
+    height: 16,
+    width: 1,
+    backgroundColor: theme.colors.surfaceLight,
+    marginLeft: 5, // Align with icon center
+    marginVertical: 2,
   },
   rideLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.textTertiary,
+    marginLeft: 2,
   },
   rideAddress: {
     fontSize: 12,
@@ -813,54 +595,192 @@ const styles = StyleSheet.create({
   },
   ridePrice: {
     fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.primary,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   rideDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.colors.textTertiary,
+    fontWeight: '500',
   },
   emptyState: {
+    width: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 60,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+    borderStyle: 'dashed',
+    borderRadius: 16,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.textTertiary,
     marginTop: 8,
   },
+
+  // List Items (Merchants & Activity)
   merchantsList: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     gap: 12,
   },
   merchantCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   merchantIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(0, 217, 163, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   merchantEmoji: {
     fontSize: 20,
   },
   merchantName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
     color: theme.colors.text,
   },
   favoriteButton: {
     padding: 8,
+    backgroundColor: 'rgba(255,0,0,0.05)',
+    borderRadius: 20,
+  },
+
+  // Activity
+  activityList: {
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 217, 163, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  activityMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityBusiness: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  dotSeparator: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    marginHorizontal: 6,
+  },
+  activityDate: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+  },
+  savingsTag: {
+    backgroundColor: 'rgba(0, 217, 163, 0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  savingsText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+
+  // Menus
+  menuSection: {
+    marginTop: 28,
+    paddingHorizontal: 24,
+  },
+  menuSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textTertiary,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    // Subtle shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    elevation: 1,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  menuIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  menuItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 2,
+  },
+  menuItemSubtitle: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+
+  // Sign Out
+  signOutButton: {
+    margin: 24,
+    marginTop: 10,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 100, 100, 0.2)',
+  },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.error,
   },
 });

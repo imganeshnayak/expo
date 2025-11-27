@@ -4,23 +4,26 @@ export const theme = {
     background: '#0A0A0A',
     surface: '#1A1A1A',
     surfaceLight: '#2A2A2A',
-    
+
     // Text colors
     text: '#FFFFFF',
     textSecondary: '#666666',
     textTertiary: '#999999',
-    
+
     // Accent colors
     primary: '#00D9A3',
     primaryDark: '#00B88A',
-    
+
     // Semantic colors
     error: '#FF4444',
     warning: '#F7B731',
     success: '#00D9A3',
     info: '#45B7D1',
+
+    // Shadow color
+    shadow: '#000000',
   },
-  
+
   spacing: {
     xs: 4,
     sm: 8,
@@ -30,7 +33,7 @@ export const theme = {
     xxl: 24,
     xxxl: 32,
   },
-  
+
   borderRadius: {
     sm: 8,
     md: 12,
@@ -38,7 +41,7 @@ export const theme = {
     xl: 20,
     round: 999,
   },
-  
+
   fontSize: {
     xs: 11,
     sm: 12,
@@ -48,7 +51,7 @@ export const theme = {
     xxl: 20,
     xxxl: 28,
   },
-  
+
   fontWeight: {
     light: '300' as const,
     regular: '400' as const,

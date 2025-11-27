@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, View, StyleSheet } from 'react-native';
-import { 
-  Home, 
-  Search, 
+import {
+  Home,
   SquareStack,
   User,
   QrCode,
@@ -34,10 +33,10 @@ const AnimatedTabIcon = ({ icon: Icon, focused, size, color }: TabIconProps) => 
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Icon 
-        size={size} 
-        color={color} 
-        fill={focused ? color : 'transparent'} 
+      <Icon
+        size={size}
+        color={color}
+        fill={focused ? color : 'transparent'}
       />
     </Animated.View>
   );
@@ -96,7 +95,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ size, color, focused }) => (
             <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
+              <AnimatedTabIcon
                 icon={Home}
                 focused={focused}
                 size={size}
@@ -113,7 +112,7 @@ export default function TabLayout() {
           title: 'Categories',
           tabBarIcon: ({ size, color, focused }) => (
             <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
+              <AnimatedTabIcon
                 icon={SquareStack}
                 focused={focused}
                 size={size}
@@ -130,7 +129,7 @@ export default function TabLayout() {
           title: 'Missions',
           tabBarIcon: ({ size, color, focused }) => (
             <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
+              <AnimatedTabIcon
                 icon={Target}
                 focused={focused}
                 size={size}
@@ -147,25 +146,8 @@ export default function TabLayout() {
           title: 'QR Code',
           tabBarIcon: ({ size, color, focused }) => (
             <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
+              <AnimatedTabIcon
                 icon={QrCode}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Search',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
-                icon={Search}
                 focused={focused}
                 size={size}
                 color={color}
@@ -181,7 +163,7 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ size, color, focused }) => (
             <View style={styles.iconContainer}>
-              <AnimatedTabIcon 
+              <AnimatedTabIcon
                 icon={User}
                 focused={focused}
                 size={size}
@@ -190,6 +172,13 @@ export default function TabLayout() {
               <ActiveDot focused={focused} />
             </View>
           ),
+        }}
+      />
+      {/* Hide search tab but keep the file */}
+      <Tabs.Screen
+        name="search"
+        options={{
+          href: null, // This hides the tab from the navigation
         }}
       />
     </Tabs>
