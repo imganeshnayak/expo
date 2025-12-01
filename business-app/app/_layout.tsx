@@ -1,69 +1,44 @@
-import { Tabs } from 'expo-router';
-import { BarChart3, Megaphone, Users, User } from 'lucide-react-native';
+import { Stack } from 'expo-router';
+import { useFonts } from 'expo-font';
+import { Belanosima_400Regular, Belanosima_600SemiBold, Belanosima_700Bold } from '@expo-google-fonts/belanosima';
+import { EricaOne_400Regular } from '@expo-google-fonts/erica-one';
+import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
+import { theme } from '../constants/theme';
 
-export default function BusinessLayout() {
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [loaded, error] = useFonts({
+    Belanosima: Belanosima_400Regular,
+    'Belanosima-SemiBold': Belanosima_600SemiBold,
+    'Belanosima-Bold': Belanosima_700Bold,
+    EricaOne: EricaOne_400Regular,
+  });
+
+  useEffect(() => {
+    if (error) throw error;
+  }, [error]);
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  if (!loaded) {
+    return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <BarChart3 color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="campaigns"
-        options={{
-          title: 'Campaigns',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Megaphone color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="crm"
-        options={{
-          title: 'CRM',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Users color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <User color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="customer-detail"
-        options={{
-          href: null, // Hide from tabs - only accessible via navigation
-        }}
-      />
-    </Tabs>
+    <>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }

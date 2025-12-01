@@ -15,6 +15,12 @@ const deals_1 = __importDefault(require("./routes/deals"));
 const ondcRetail_1 = __importDefault(require("./routes/ondcRetail"));
 const rides_1 = __importDefault(require("./routes/rides"));
 const loyalty_1 = __importDefault(require("./routes/loyalty"));
+// Business App Routes
+const merchantAuth_1 = __importDefault(require("./routes/business/merchantAuth"));
+const crm_1 = __importDefault(require("./routes/business/crm"));
+const campaigns_1 = __importDefault(require("./routes/business/campaigns"));
+const analytics_1 = __importDefault(require("./routes/business/analytics"));
+const notifications_1 = __importDefault(require("./routes/business/notifications"));
 // Load environment variables
 dotenv_1.default.config();
 // Connect to database
@@ -27,13 +33,19 @@ app.use((0, cors_1.default)());
 app.use((0, compression_1.default)());
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-// Routes
+// Customer App Routes
 app.use('/api/auth', auth_1.default);
 app.use('/api/wallet', wallet_1.default);
 app.use('/api/deals', deals_1.default);
 app.use('/api/ondc/retail', ondcRetail_1.default);
 app.use('/api/rides', rides_1.default);
 app.use('/api/loyalty', loyalty_1.default);
+// Business App Routes
+app.use('/api/merchant/auth', merchantAuth_1.default);
+app.use('/api/crm', crm_1.default);
+app.use('/api/campaigns', campaigns_1.default);
+app.use('/api/analytics', analytics_1.default);
+app.use('/api/notifications', notifications_1.default);
 // Basic route
 app.get('/', (req, res) => {
     res.json({

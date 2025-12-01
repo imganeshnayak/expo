@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.protect = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = __importDefault(require("../models/User"));
+const MerchantUser_1 = __importDefault(require("../models/business/MerchantUser"));
 const protect = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     let token;
     if (req.headers.authorization &&
@@ -24,8 +25,17 @@ const protect = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
             token = req.headers.authorization.split(' ')[1];
             // Verify token
             const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
-            // Get user from the token
-            const user = yield User_1.default.findById(decoded.id).select('-password');
+            // Try to find as regular user first
+            let user = yield User_1.default.findById(decoded.id).select('-password');
+            if (!user) {
+                // Try to find as merchant user
+                const merchantUser = yield MerchantUser_1.default.findById(decoded.id).select('-password');
+                if (merchantUser) {
+                    // Add merchantId to user object for easy access
+                    user = merchantUser;
+                    user.merchantId = merchantUser.merchantId;
+                }
+            }
             if (!user) {
                 return res.status(401).json({ message: 'Not authorized, user not found' });
             }
