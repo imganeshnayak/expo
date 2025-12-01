@@ -33,6 +33,17 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging middleware
+app.use((req: Request, res: Response, next) => {
+    console.log(`📝 ${req.method} ${req.url}`);
+    if (req.method === 'POST' || req.method === 'PUT') {
+        const body = { ...req.body };
+        if (body.password) body.password = '***'; // Hide password
+        console.log('📦 Body:', JSON.stringify(body, null, 2));
+    }
+    next();
+});
+
 // Customer App Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);

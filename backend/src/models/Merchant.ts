@@ -26,6 +26,7 @@ export interface IMerchant extends Document {
     isActive: boolean;
     businessHours?: Record<string, any>;
     socialMedia?: Record<string, string>;
+    paymentMethods?: string[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -66,6 +67,7 @@ const MerchantSchema: Schema = new Schema(
         },
         businessHours: Map,
         socialMedia: Map,
+        paymentMethods: [String],
     },
     {
         timestamps: true,

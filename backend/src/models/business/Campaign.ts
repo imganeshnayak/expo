@@ -3,7 +3,8 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface ICampaign extends Document {
     merchantId: Types.ObjectId;
     name: string;
-    type: 'acquisition' | 'retention' | 'reactivation';
+    type: 'stamp_card' | 'discount' | 'ride_reimbursement' | 'mission' | 'combo';
+    category: 'acquisition' | 'retention' | 'reactivation' | 'loyalty';
     status: 'draft' | 'active' | 'paused' | 'completed';
     budget: {
         total: number;
@@ -50,7 +51,12 @@ const CampaignSchema: Schema = new Schema(
         },
         type: {
             type: String,
-            enum: ['acquisition', 'retention', 'reactivation'],
+            enum: ['stamp_card', 'discount', 'ride_reimbursement', 'mission', 'combo'],
+            required: true,
+        },
+        category: {
+            type: String,
+            enum: ['acquisition', 'retention', 'reactivation', 'loyalty'],
             required: true,
         },
         status: {

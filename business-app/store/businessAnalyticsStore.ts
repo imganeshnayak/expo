@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../lib/api';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -112,7 +113,7 @@ interface AnalyticsState {
   analytics: BusinessAnalytics | null;
   selectedPeriod: TimePeriod;
   isLoading: boolean;
-  
+
   // Actions
   initializeAnalytics: (merchantId: string) => void;
   setPeriod: (period: TimePeriod) => void;
@@ -128,14 +129,14 @@ interface AnalyticsState {
 
 const generateSampleAnalytics = (merchantId: string, period: TimePeriod): BusinessAnalytics => {
   const now = Date.now();
-  
+
   return {
     merchantId,
     merchantName: 'Coffee House Koramangala',
     merchantCategory: 'cafe',
     period,
     lastUpdated: now,
-    
+
     overview: {
       totalCustomers: 157,
       newCustomers: 38,
@@ -147,7 +148,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
       revenueTrend: 18.2, // +18.2%
       aovTrend: -4.1, // -4.1%
     },
-    
+
     customerInsights: {
       demographics: {
         ageGroups: [
@@ -174,7 +175,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
           { area: 'Other', percentage: 17, count: 27 },
         ],
       },
-      
+
       behavior: {
         visitFrequency: 2.3,
         averageSpend: 309,
@@ -205,7 +206,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
           { day: 'Sunday', visits: 11, revenue: 3399 },
         ],
       },
-      
+
       loyalty: {
         stampCardCompletionRate: 45,
         rewardRedemptionRate: 78,
@@ -215,7 +216,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
         averageCustomerLifespan: 87,
       },
     },
-    
+
     campaignPerformance: {
       activeCampaigns: [
         {
@@ -272,7 +273,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
         { dealId: 'deal_3', name: 'Evening Snack Deal', conversions: 42, revenue: 6300 },
       ],
     },
-    
+
     competitiveIntelligence: {
       marketShare: 23,
       marketRank: 2,
@@ -297,7 +298,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
         { merchant: 'Blue Tokai', rating: 3.8, isYou: false },
       ],
     },
-    
+
     recommendations: [],
   };
 };
@@ -309,7 +310,7 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
 const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendation[] => {
   const recommendations: AIRecommendation[] = [];
   const now = Date.now();
-  
+
   // 1. PRICING OPTIMIZATION
   const highPricedItems = analytics.competitiveIntelligence.pricingComparison.filter(
     item => item.position === 'high'
@@ -330,7 +331,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 2. PEAK HOURS OPTIMIZATION
   const peakHour = analytics.customerInsights.behavior.peakHours.reduce((max, hour) =>
     hour.visits > max.visits ? hour : max
@@ -354,7 +355,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 3. CUSTOMER CHURN PREVENTION
   if (analytics.customerInsights.loyalty.churnRate > 10) {
     recommendations.push({
@@ -372,7 +373,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 4. STAMP CARD OPTIMIZATION
   if (analytics.customerInsights.loyalty.stampCardCompletionRate < 50) {
     recommendations.push({
@@ -390,7 +391,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 5. DEMAND FORECAST OPPORTUNITY
   const upcomingHighDemand = analytics.competitiveIntelligence.demandForecast.find(
     forecast => forecast.expectedCustomers > analytics.overview.totalCustomers / 7 * 1.3
@@ -407,7 +408,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 6. NEW CUSTOMER ACQUISITION
   const newCustomerPercentage = (analytics.overview.newCustomers / analytics.overview.totalCustomers) * 100;
   if (newCustomerPercentage < 20) {
@@ -426,7 +427,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   // 7. ROI OPTIMIZATION
   const lowROICampaigns = analytics.campaignPerformance.activeCampaigns.filter(
     camp => camp.roi < 150
@@ -447,7 +448,7 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
       createdAt: now,
     });
   }
-  
+
   return recommendations.sort((a, b) => {
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return priorityOrder[a.priority] - priorityOrder[b.priority];
@@ -458,6 +459,72 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
 // STORE IMPLEMENTATION
 // ============================================================================
 
+// Helper to map backend data to frontend structure
+const mapBackendToFrontend = (backendData: any): BusinessAnalytics => {
+  const metrics = backendData.metrics || {};
+
+  return {
+    merchantId: backendData.merchantId,
+    merchantName: '', // Not in analytics response
+    merchantCategory: '',
+    period: backendData.period,
+    lastUpdated: Date.now(),
+
+    overview: {
+      totalCustomers: metrics.totalCustomers || 0,
+      newCustomers: metrics.newCustomers || 0,
+      returningCustomers: metrics.returningCustomers || 0,
+      totalRevenue: metrics.totalRevenue || 0,
+      averageOrderValue: metrics.averageOrderValue || 0,
+      customerAcquisitionCost: metrics.customerAcquisitionCost || 0,
+      customersTrend: 0,
+      revenueTrend: 0,
+      aovTrend: 0,
+    },
+
+    customerInsights: {
+      demographics: {
+        ageGroups: [],
+        genderDistribution: [],
+        customerSource: [],
+        locationDistribution: [],
+      },
+      behavior: {
+        visitFrequency: 0,
+        averageSpend: metrics.averageOrderValue || 0,
+        favoriteItems: metrics.topItems || [],
+        peakHours: metrics.peakHours || [],
+        peakDays: metrics.peakDays || [],
+      },
+      loyalty: {
+        stampCardCompletionRate: 0,
+        rewardRedemptionRate: 0,
+        customerLifetimeValue: metrics.customerLifetimeValue || 0,
+        repeatCustomerRate: 0,
+        churnRate: metrics.churnRate || 0,
+        averageCustomerLifespan: 0,
+      },
+    },
+
+    campaignPerformance: {
+      activeCampaigns: [],
+      roiByCampaign: [],
+      bestPerformingDeals: [],
+    },
+
+    competitiveIntelligence: {
+      marketShare: 0,
+      marketRank: 0,
+      totalCompetitors: 0,
+      pricingComparison: [],
+      demandForecast: [],
+      ratingComparison: [],
+    },
+
+    recommendations: [],
+  };
+};
+
 export const useBusinessAnalyticsStore = create<AnalyticsState>()(
   persist(
     (set, get) => ({
@@ -465,68 +532,88 @@ export const useBusinessAnalyticsStore = create<AnalyticsState>()(
       selectedPeriod: 'week',
       isLoading: false,
 
-      initializeAnalytics: (merchantId) => {
+      initializeAnalytics: async (merchantId: string) => {
         set({ isLoading: true });
-        
-        const analytics = generateSampleAnalytics(merchantId, get().selectedPeriod);
-        const recommendations = generateAIRecommendations(analytics);
-        
-        set({
-          analytics: { ...analytics, recommendations },
-          isLoading: false,
-        });
-        
-        console.log('✅ Business analytics initialized for', merchantId);
+        try {
+          const period = get().selectedPeriod;
+          const response = await api.get<{
+            success: boolean;
+            analytics: any; // Backend structure
+          }>(`/api/analytics/overview?period=${period}`);
+
+          const mappedAnalytics = mapBackendToFrontend(response.analytics);
+
+          set({
+            analytics: mappedAnalytics,
+            isLoading: false,
+          });
+          console.log('✅ Business analytics initialized from API');
+        } catch (error: any) {
+          console.error('❌ Failed to load analytics:', error.message);
+          set({
+            analytics: null,
+            isLoading: false,
+          });
+        }
       },
 
-      setPeriod: (period) => {
-        const { analytics } = get();
-        if (!analytics) return;
-        
-        set({ isLoading: true });
-        
-        const updatedAnalytics = generateSampleAnalytics(analytics.merchantId, period);
-        const recommendations = generateAIRecommendations(updatedAnalytics);
-        
-        set({
-          selectedPeriod: period,
-          analytics: { ...updatedAnalytics, recommendations },
-          isLoading: false,
-        });
+      setPeriod: async (period: TimePeriod) => {
+        set({ isLoading: true, selectedPeriod: period });
+        try {
+          const response = await api.get<{
+            success: boolean;
+            analytics: any;
+          }>(`/api/analytics/overview?period=${period}`);
+
+          const mappedAnalytics = mapBackendToFrontend(response.analytics);
+
+          set({
+            analytics: mappedAnalytics,
+            isLoading: false,
+          });
+        } catch (error: any) {
+          console.error('❌ Failed to update period:', error.message);
+          set({ isLoading: false });
+        }
       },
 
-      refreshAnalytics: () => {
-        const { analytics, selectedPeriod } = get();
-        if (!analytics) return;
-        
+      refreshAnalytics: async () => {
+        const { selectedPeriod } = get();
         set({ isLoading: true });
-        
-        const refreshed = generateSampleAnalytics(analytics.merchantId, selectedPeriod);
-        const recommendations = generateAIRecommendations(refreshed);
-        
-        set({
-          analytics: { ...refreshed, recommendations, lastUpdated: Date.now() },
-          isLoading: false,
-        });
-        
-        console.log('🔄 Analytics refreshed');
+        try {
+          const response = await api.get<{
+            success: boolean;
+            analytics: any;
+          }>(`/api/analytics/overview?period=${selectedPeriod}`);
+
+          const mappedAnalytics = mapBackendToFrontend(response.analytics);
+
+          set({
+            analytics: mappedAnalytics,
+            isLoading: false,
+          });
+          console.log('🔄 Analytics refreshed from API');
+        } catch (error: any) {
+          console.error('❌ Failed to refresh analytics:', error.message);
+          set({ isLoading: false });
+        }
       },
 
       generateRecommendations: () => {
         const { analytics } = get();
         if (!analytics) return [];
-        
+
         return generateAIRecommendations(analytics);
       },
 
       trackCampaignEvent: (campaignId, event, revenue = 0) => {
         const { analytics } = get();
         if (!analytics) return;
-        
+
         const campaigns = analytics.campaignPerformance.activeCampaigns.map(camp => {
           if (camp.id === campaignId) {
             const updates: Partial<CampaignPerformance> = {};
-            
+
             if (event === 'impression') {
               updates.impressions = camp.impressions + 1;
             } else if (event === 'click') {
@@ -537,12 +624,12 @@ export const useBusinessAnalyticsStore = create<AnalyticsState>()(
               updates.revenue = camp.revenue + revenue;
               updates.roi = ((camp.revenue + revenue - camp.spend) / camp.spend) * 100;
             }
-            
+
             return { ...camp, ...updates };
           }
           return camp;
         });
-        
+
         set({
           analytics: {
             ...analytics,
@@ -557,7 +644,7 @@ export const useBusinessAnalyticsStore = create<AnalyticsState>()(
       trackCustomerEvent: (customerId, event, data) => {
         const { analytics } = get();
         if (!analytics) return;
-        
+
         // Update overview metrics
         if (event === 'visit') {
           set({
@@ -584,7 +671,7 @@ export const useBusinessAnalyticsStore = create<AnalyticsState>()(
             },
           });
         }
-        
+
         console.log(`📊 Tracked ${event} for customer ${customerId}`);
       },
     }),

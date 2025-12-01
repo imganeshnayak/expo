@@ -18,7 +18,7 @@ import {
     Trash2,
     CheckCheck,
 } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import {
     useNotificationStore,
     type Notification,
@@ -33,6 +33,7 @@ interface NotificationCenterProps {
 }
 
 export default function NotificationCenter({ visible, onClose }: NotificationCenterProps) {
+    const theme = useAppTheme();
     const {
         notifications,
         unreadCount,
@@ -42,6 +43,8 @@ export default function NotificationCenter({ visible, onClose }: NotificationCen
     } = useNotificationStore();
 
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
+
+    const styles = getStyles(theme);
 
     const filteredNotifications = filter === 'unread'
         ? notifications.filter(n => !n.read)
@@ -186,7 +189,7 @@ export default function NotificationCenter({ visible, onClose }: NotificationCen
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

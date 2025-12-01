@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../lib/api';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -179,7 +180,7 @@ const generateSampleCustomers = (merchantId: string): CustomerProfile[] => {
     const avgSpend = Math.floor(Math.random() * 400) + 150;
     const ltv = visitCount * avgSpend;
     const lastVisitDaysAgo = Math.floor(Math.random() * 60);
-    
+
     let segment: CustomerSegment;
     if (ltv > 5000) segment = 'vip';
     else if (lastVisitDaysAgo > 21) segment = 'at_risk';
@@ -187,7 +188,7 @@ const generateSampleCustomers = (merchantId: string): CustomerProfile[] => {
     else segment = 'new';
 
     const timeOfDay: TimeOfDay = Math.random() > 0.6 ? 'evening' : Math.random() > 0.3 ? 'afternoon' : 'morning';
-    
+
     return {
       id: `cust_${1000 + i}`,
       phone: `+91 ${9000000000 + i}`,
@@ -371,21 +372,38 @@ export const useCRMStore = create<CRMState>()(
       selectedCustomer: null,
       isLoading: false,
 
-      initializeCustomers: (merchantId: string) => {
-        const existingCustomers = get().customers;
-        
-        if (existingCustomers.length === 0) {
+      initializeCustomers: async (merchantId: string) => {
+        set({ isLoading: true });
+        try {
+          // Fetch customers from API
+          const response = await api.get<{
+            success: boolean;
+            customers: CustomerProfile[];
+          }>('/api/crm/customers?limit=100');
+
+          set({
+            customers: response.customers || [],
+            segments: DEFAULT_SEGMENTS,
+            workflows: DEFAULT_WORKFLOWS,
+            isLoading: false,
+          });
+
+          // Refresh segment counts
+          get().refreshSegmentCounts();
+
+          console.log(`👥 Loaded ${response.customers?.length || 0} customers from API`);
+        } catch (error: any) {
+          console.error('❌ Failed to load customers:', error.message);
+          // Fallback to sample data if API fails
           const sampleCustomers = generateSampleCustomers(merchantId);
-          set({ 
+          set({
             customers: sampleCustomers,
             segments: DEFAULT_SEGMENTS,
             workflows: DEFAULT_WORKFLOWS,
+            isLoading: false,
           });
-          
-          // Refresh segment counts
           get().refreshSegmentCounts();
-          
-          console.log(`👥 Initialized ${sampleCustomers.length} sample customers for merchant ${merchantId}`);
+          console.log(`👥 Using ${sampleCustomers.length} sample customers (API unavailable)`);
         }
       },
 
@@ -393,110 +411,167 @@ export const useCRMStore = create<CRMState>()(
         return get().customers.find(c => c.id === customerId);
       },
 
-      updateCustomer: (customerId: string, updates: Partial<CustomerProfile>) => {
-        const { customers } = get();
-        const updatedCustomers = customers.map(c =>
-          c.id === customerId ? { ...c, ...updates } : c
-        );
-        set({ customers: updatedCustomers });
+      updateCustomer: async (customerId: string, updates: Partial<CustomerProfile>) => {
+        try {
+          // Update on backend
+          await api.put(`/api/crm/customers/${customerId}`, updates);
+
+          // Update local state
+          const { customers } = get();
+          const updatedCustomers = customers.map(c =>
+            c.id === customerId ? { ...c, ...updates } : c
+          );
+          set({ customers: updatedCustomers });
+          console.log(`✅ Updated customer ${customerId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to update customer:', error.message);
+          // Still update locally even if API fails
+          const { customers } = get();
+          const updatedCustomers = customers.map(c =>
+            c.id === customerId ? { ...c, ...updates } : c
+          );
+          set({ customers: updatedCustomers });
+        }
       },
 
-      addCustomerNote: (customerId: string, note: string) => {
-        const { customers } = get();
-        const updatedCustomers = customers.map(c => {
-          if (c.id === customerId) {
-            return {
-              ...c,
-              notes: c.notes ? `${c.notes}\n\n${new Date().toLocaleDateString()}: ${note}` : note,
-            };
-          }
-          return c;
-        });
-        set({ customers: updatedCustomers });
-        console.log(`📝 Added note to customer ${customerId}`);
+      addCustomerNote: async (customerId: string, note: string) => {
+        try {
+          await api.post(`/api/crm/customers/${customerId}/notes`, { note });
+
+          const { customers } = get();
+          const updatedCustomers = customers.map(c => {
+            if (c.id === customerId) {
+              return {
+                ...c,
+                notes: c.notes ? `${c.notes}\n\n${new Date().toLocaleDateString()}: ${note}` : note,
+              };
+            }
+            return c;
+          });
+          set({ customers: updatedCustomers });
+          console.log(`📝 Added note to customer ${customerId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to add note:', error.message);
+        }
       },
 
-      addCustomerTag: (customerId: string, tag: string) => {
-        const { customers } = get();
-        const updatedCustomers = customers.map(c => {
-          if (c.id === customerId && !c.tags.includes(tag)) {
-            return { ...c, tags: [...c.tags, tag] };
-          }
-          return c;
-        });
-        set({ customers: updatedCustomers });
+      addCustomerTag: async (customerId: string, tag: string) => {
+        try {
+          await api.post(`/api/crm/customers/${customerId}/tags`, { tag });
+
+          const { customers } = get();
+          const updatedCustomers = customers.map(c => {
+            if (c.id === customerId && !c.tags.includes(tag)) {
+              return { ...c, tags: [...c.tags, tag] };
+            }
+            return c;
+          });
+          set({ customers: updatedCustomers });
+        } catch (error: any) {
+          console.error('❌ Failed to add tag:', error.message);
+        }
       },
 
-      removeCustomerTag: (customerId: string, tag: string) => {
-        const { customers } = get();
-        const updatedCustomers = customers.map(c => {
-          if (c.id === customerId) {
-            return { ...c, tags: c.tags.filter(t => t !== tag) };
-          }
-          return c;
-        });
-        set({ customers: updatedCustomers });
+      removeCustomerTag: async (customerId: string, tag: string) => {
+        try {
+          await api.delete(`/api/crm/customers/${customerId}/tags/${tag}`);
+
+          const { customers } = get();
+          const updatedCustomers = customers.map(c => {
+            if (c.id === customerId) {
+              return { ...c, tags: c.tags.filter(t => t !== tag) };
+            }
+            return c;
+          });
+          set({ customers: updatedCustomers });
+        } catch (error: any) {
+          console.error('❌ Failed to remove tag:', error.message);
+        }
       },
 
-      recordVisit: (customerId: string, amount: number) => {
-        const { customers } = get();
-        const now = Date.now();
-        
-        const updatedCustomers = customers.map(c => {
-          if (c.id === customerId) {
-            const newVisitCount = c.visitCount + 1;
-            const newLTV = c.lifetimeValue + amount;
-            const newAvgSpend = newLTV / newVisitCount;
-            
-            // Update segment based on new stats
-            let newSegment: CustomerSegment = c.segment;
-            if (newLTV > 5000) newSegment = 'vip';
-            else if (newVisitCount > 5) newSegment = 'regular';
-            else newSegment = 'new';
-            
-            return {
-              ...c,
-              visitCount: newVisitCount,
-              lifetimeValue: newLTV,
-              averageSpend: newAvgSpend,
-              lastVisit: now,
-              segment: newSegment,
-            };
-          }
-          return c;
-        });
-        
-        set({ customers: updatedCustomers });
-        console.log(`✅ Recorded visit for customer ${customerId}: ₹${amount}`);
+      recordVisit: async (customerId: string, amount: number) => {
+        try {
+          await api.post(`/api/crm/customers/${customerId}/visit`, { amount });
+
+          const { customers } = get();
+          const now = Date.now();
+
+          const updatedCustomers = customers.map(c => {
+            if (c.id === customerId) {
+              const newVisitCount = c.visitCount + 1;
+              const newLTV = c.lifetimeValue + amount;
+              const newAvgSpend = newLTV / newVisitCount;
+
+              // Update segment based on new stats
+              let newSegment: CustomerSegment = c.segment;
+              if (newLTV > 5000) newSegment = 'vip';
+              else if (newVisitCount > 5) newSegment = 'regular';
+              else newSegment = 'new';
+
+              return {
+                ...c,
+                visitCount: newVisitCount,
+                lifetimeValue: newLTV,
+                averageSpend: newAvgSpend,
+                lastVisit: now,
+                segment: newSegment,
+              };
+            }
+            return c;
+          });
+
+          set({ customers: updatedCustomers });
+          console.log(`✅ Recorded visit for customer ${customerId}: ₹${amount}`);
+        } catch (error: any) {
+          console.error('❌ Failed to record visit:', error.message);
+        }
       },
 
-      createSegment: (segment) => {
-        const { segments } = get();
-        const newSegment: CustomSegment = {
-          ...segment,
-          id: `seg_${Date.now()}`,
-          customerCount: 0,
-          averageLTV: 0,
-          lastUpdated: Date.now(),
-        };
-        
-        set({ segments: [...segments, newSegment] });
-        get().refreshSegmentCounts();
-        console.log(`🎯 Created segment: ${newSegment.name}`);
+      createSegment: async (segment) => {
+        try {
+          const response = await api.post<{ success: boolean; segment: CustomSegment }>('/api/crm/segments', segment);
+
+          const { segments } = get();
+          const newSegment = response.segment || {
+            ...segment,
+            id: `seg_${Date.now()}`,
+            customerCount: 0,
+            averageLTV: 0,
+            lastUpdated: Date.now(),
+          };
+
+          set({ segments: [...segments, newSegment] });
+          get().refreshSegmentCounts();
+          console.log(`🎯 Created segment: ${newSegment.name}`);
+        } catch (error: any) {
+          console.error('❌ Failed to create segment:', error.message);
+        }
       },
 
-      updateSegment: (segmentId: string, updates: Partial<CustomSegment>) => {
-        const { segments } = get();
-        const updatedSegments = segments.map(s =>
-          s.id === segmentId ? { ...s, ...updates, lastUpdated: Date.now() } : s
-        );
-        set({ segments: updatedSegments });
+      updateSegment: async (segmentId: string, updates: Partial<CustomSegment>) => {
+        try {
+          await api.put(`/api/crm/segments/${segmentId}`, updates);
+
+          const { segments } = get();
+          const updatedSegments = segments.map(s =>
+            s.id === segmentId ? { ...s, ...updates, lastUpdated: Date.now() } : s
+          );
+          set({ segments: updatedSegments });
+        } catch (error: any) {
+          console.error('❌ Failed to update segment:', error.message);
+        }
       },
 
-      deleteSegment: (segmentId: string) => {
-        const { segments } = get();
-        set({ segments: segments.filter(s => s.id !== segmentId) });
-        console.log(`🗑️ Deleted segment: ${segmentId}`);
+      deleteSegment: async (segmentId: string) => {
+        try {
+          await api.delete(`/api/crm/segments/${segmentId}`);
+
+          const { segments } = get();
+          set({ segments: segments.filter(s => s.id !== segmentId) });
+          console.log(`🗑️ Deleted segment: ${segmentId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to delete segment:', error.message);
+        }
       },
 
       getCustomersInSegment: (segmentId: string) => {
@@ -514,7 +589,7 @@ export const useCRMStore = create<CRMState>()(
 
       refreshSegmentCounts: () => {
         const { segments, customers } = get();
-        
+
         const updatedSegments = segments.map(segment => {
           const customersInSegment = customers.filter(customer => {
             return segment.criteria.every(criteria => {
@@ -522,11 +597,11 @@ export const useCRMStore = create<CRMState>()(
               return evaluateCriteria(fieldValue, criteria.operator, criteria.value);
             });
           });
-          
+
           const avgLTV = customersInSegment.length > 0
             ? customersInSegment.reduce((sum, c) => sum + c.lifetimeValue, 0) / customersInSegment.length
             : 0;
-          
+
           return {
             ...segment,
             customerCount: customersInSegment.length,
@@ -534,118 +609,160 @@ export const useCRMStore = create<CRMState>()(
             lastUpdated: Date.now(),
           };
         });
-        
+
         set({ segments: updatedSegments });
       },
 
-      createCampaign: (campaign) => {
-        const { campaigns } = get();
-        const newCampaign: CommunicationCampaign = {
-          ...campaign,
-          id: `comm_${Date.now()}`,
-          performance: {
-            sent: 0,
-            delivered: 0,
-            opened: 0,
-            clicked: 0,
-            converted: 0,
-          },
-          createdAt: Date.now(),
-        };
-        
-        set({ campaigns: [...campaigns, newCampaign] });
-        console.log(`📧 Created campaign: ${newCampaign.name}`);
+      createCampaign: async (campaign) => {
+        try {
+          const response = await api.post<{ success: boolean; campaign: CommunicationCampaign }>('/api/campaigns', campaign);
+
+          const { campaigns } = get();
+          const newCampaign = response.campaign || {
+            ...campaign,
+            id: `comm_${Date.now()}`,
+            performance: {
+              sent: 0,
+              delivered: 0,
+              opened: 0,
+              clicked: 0,
+              converted: 0,
+            },
+            createdAt: Date.now(),
+          };
+
+          set({ campaigns: [...campaigns, newCampaign] });
+          console.log(`📧 Created campaign: ${newCampaign.name}`);
+        } catch (error: any) {
+          console.error('❌ Failed to create campaign:', error.message);
+        }
       },
 
-      sendCampaign: (campaignId: string) => {
-        const { campaigns, segments, customers } = get();
-        const campaign = campaigns.find(c => c.id === campaignId);
-        if (!campaign) return;
+      sendCampaign: async (campaignId: string) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/send`);
 
-        // Calculate total recipients
-        let totalRecipients = 0;
-        campaign.segmentIds.forEach(segmentId => {
-          const segment = segments.find(s => s.id === segmentId);
-          if (segment) {
-            totalRecipients += segment.customerCount;
-          }
-        });
+          const { campaigns, segments } = get();
+          const campaign = campaigns.find(c => c.id === campaignId);
+          if (!campaign) return;
 
-        const updatedCampaigns = campaigns.map(c => {
-          if (c.id === campaignId) {
-            return {
-              ...c,
-              status: 'sent' as const,
-              sentAt: Date.now(),
-              performance: {
-                sent: totalRecipients,
-                delivered: Math.floor(totalRecipients * 0.95),
-                opened: Math.floor(totalRecipients * 0.42),
-                clicked: Math.floor(totalRecipients * 0.18),
-                converted: Math.floor(totalRecipients * 0.08),
-              },
-            };
-          }
-          return c;
-        });
-        
-        set({ campaigns: updatedCampaigns });
-        console.log(`📤 Sent campaign ${campaignId} to ${totalRecipients} customers`);
+          // Calculate total recipients for local optimistic update
+          let totalRecipients = 0;
+          campaign.segmentIds.forEach(segmentId => {
+            const segment = segments.find(s => s.id === segmentId);
+            if (segment) {
+              totalRecipients += segment.customerCount;
+            }
+          });
+
+          const updatedCampaigns = campaigns.map(c => {
+            if (c.id === campaignId) {
+              return {
+                ...c,
+                status: 'sent' as const,
+                sentAt: Date.now(),
+                performance: {
+                  sent: totalRecipients,
+                  delivered: Math.floor(totalRecipients * 0.95),
+                  opened: Math.floor(totalRecipients * 0.42),
+                  clicked: Math.floor(totalRecipients * 0.18),
+                  converted: Math.floor(totalRecipients * 0.08),
+                },
+              };
+            }
+            return c;
+          });
+
+          set({ campaigns: updatedCampaigns });
+          console.log(`📤 Sent campaign ${campaignId} to ${totalRecipients} customers`);
+        } catch (error: any) {
+          console.error('❌ Failed to send campaign:', error.message);
+        }
       },
 
-      scheduleCampaign: (campaignId: string, scheduledFor: number) => {
-        const { campaigns } = get();
-        const updatedCampaigns = campaigns.map(c =>
-          c.id === campaignId ? { ...c, status: 'scheduled' as const, scheduledFor } : c
-        );
-        set({ campaigns: updatedCampaigns });
-        console.log(`📅 Scheduled campaign ${campaignId}`);
+      scheduleCampaign: async (campaignId: string, scheduledFor: number) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/schedule`, { scheduledFor });
+
+          const { campaigns } = get();
+          const updatedCampaigns = campaigns.map(c =>
+            c.id === campaignId ? { ...c, status: 'scheduled' as const, scheduledFor } : c
+          );
+          set({ campaigns: updatedCampaigns });
+          console.log(`📅 Scheduled campaign ${campaignId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to schedule campaign:', error.message);
+        }
       },
 
-      archiveCampaign: (campaignId: string) => {
-        const { campaigns } = get();
-        const updatedCampaigns = campaigns.map(c =>
-          c.id === campaignId ? { ...c, status: 'archived' as const } : c
-        );
-        set({ campaigns: updatedCampaigns });
+      archiveCampaign: async (campaignId: string) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/archive`);
+
+          const { campaigns } = get();
+          const updatedCampaigns = campaigns.map(c =>
+            c.id === campaignId ? { ...c, status: 'archived' as const } : c
+          );
+          set({ campaigns: updatedCampaigns });
+        } catch (error: any) {
+          console.error('❌ Failed to archive campaign:', error.message);
+        }
       },
 
-      createWorkflow: (workflow) => {
-        const { workflows } = get();
-        const newWorkflow: AutomatedWorkflow = {
-          ...workflow,
-          id: `wf_${Date.now()}`,
-          performance: {
-            triggered: 0,
-            sent: 0,
-            converted: 0,
-            revenue: 0,
-          },
-        };
-        
-        set({ workflows: [...workflows, newWorkflow] });
-        console.log(`⚙️ Created workflow: ${newWorkflow.name}`);
+      createWorkflow: async (workflow) => {
+        try {
+          const response = await api.post<{ success: boolean; workflow: AutomatedWorkflow }>('/api/crm/workflows', workflow);
+
+          const { workflows } = get();
+          const newWorkflow = response.workflow || {
+            ...workflow,
+            id: `wf_${Date.now()}`,
+            performance: {
+              triggered: 0,
+              sent: 0,
+              converted: 0,
+              revenue: 0,
+            },
+          };
+
+          set({ workflows: [...workflows, newWorkflow] });
+          console.log(`⚙️ Created workflow: ${newWorkflow.name}`);
+        } catch (error: any) {
+          console.error('❌ Failed to create workflow:', error.message);
+        }
       },
 
-      toggleWorkflow: (workflowId: string, enabled: boolean) => {
-        const { workflows } = get();
-        const updatedWorkflows = workflows.map(w =>
-          w.id === workflowId ? { ...w, enabled } : w
-        );
-        set({ workflows: updatedWorkflows });
-        console.log(`${enabled ? '✅' : '⏸️'} ${enabled ? 'Enabled' : 'Disabled'} workflow ${workflowId}`);
+      toggleWorkflow: async (workflowId: string, enabled: boolean) => {
+        try {
+          await api.post(`/api/crm/workflows/${workflowId}/toggle`, { enabled });
+
+          const { workflows } = get();
+          const updatedWorkflows = workflows.map(w =>
+            w.id === workflowId ? { ...w, enabled } : w
+          );
+          set({ workflows: updatedWorkflows });
+          console.log(`${enabled ? '✅' : '⏸️'} ${enabled ? 'Enabled' : 'Disabled'} workflow ${workflowId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to toggle workflow:', error.message);
+        }
       },
 
-      deleteWorkflow: (workflowId: string) => {
-        const { workflows } = get();
-        set({ workflows: workflows.filter(w => w.id !== workflowId) });
-        console.log(`🗑️ Deleted workflow: ${workflowId}`);
+      deleteWorkflow: async (workflowId: string) => {
+        try {
+          await api.delete(`/api/crm/workflows/${workflowId}`);
+
+          const { workflows } = get();
+          set({ workflows: workflows.filter(w => w.id !== workflowId) });
+          console.log(`🗑️ Deleted workflow: ${workflowId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to delete workflow:', error.message);
+        }
       },
 
       getSegmentStats: () => {
         const { customers } = get();
         const stats = new Map<CustomerSegment, { count: number; totalLTV: number }>();
-        
+
         customers.forEach(c => {
           const existing = stats.get(c.segment) || { count: 0, totalLTV: 0 };
           stats.set(c.segment, {
@@ -653,7 +770,7 @@ export const useCRMStore = create<CRMState>()(
             totalLTV: existing.totalLTV + c.lifetimeValue,
           });
         });
-        
+
         return Array.from(stats.entries()).map(([segment, data]) => ({
           segment,
           count: data.count,
@@ -748,7 +865,7 @@ export const formatDate = (timestamp: number): string => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-  
+
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;

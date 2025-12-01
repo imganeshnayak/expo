@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users, DollarSign, ShoppingBag, TrendingUp } from 'lucide-react-native';
 import { useBusinessAnalyticsStore, formatCurrency } from '../../store/businessAnalyticsStore';
-import { theme } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -18,15 +20,16 @@ interface MetricCardProps {
   label: string;
   value: string | number;
   color: string;
+  theme: any;
 }
 
-const MetricCard = ({ icon: Icon, label, value, color }: MetricCardProps) => (
-  <View style={styles.metricCard}>
-    <View style={[styles.iconCircle, { backgroundColor: color + '20' }]}>
+const MetricCard = ({ icon: Icon, label, value, color, theme }: MetricCardProps) => (
+  <View style={styles(theme).metricCard}>
+    <View style={[styles(theme).iconCircle, { backgroundColor: color + '20' }]}>
       <Icon size={24} color={color} strokeWidth={2.5} />
     </View>
-    <Text style={styles.metricValue}>{value}</Text>
-    <Text style={styles.metricLabel}>{label}</Text>
+    <Text style={styles(theme).metricValue}>{value}</Text>
+    <Text style={styles(theme).metricLabel}>{label}</Text>
   </View>
 );
 
@@ -35,80 +38,104 @@ interface TopItemProps {
   name: string;
   value: string;
   count: number;
+  theme: any;
 }
 
-const TopItem = ({ rank, name, value, count }: TopItemProps) => (
-  <View style={styles.topItem}>
-    <View style={styles.topItemLeft}>
-      <View style={styles.rankBadge}>
-        <Text style={styles.rankText}>{rank}</Text>
+const TopItem = ({ rank, name, value, count, theme }: TopItemProps) => (
+  <View style={styles(theme).topItem}>
+    <View style={styles(theme).topItemLeft}>
+      <View style={styles(theme).rankBadge}>
+        <Text style={styles(theme).rankText}>{rank}</Text>
       </View>
       <View>
-        <Text style={styles.itemName}>{name}</Text>
-        <Text style={styles.itemCount}>{count} orders</Text>
+        <Text style={styles(theme).itemName}>{name}</Text>
+        <Text style={styles(theme).itemCount}>{count} orders</Text>
       </View>
     </View>
-    <Text style={styles.itemValue}>{value}</Text>
+    <Text style={styles(theme).itemValue}>{value}</Text>
   </View>
 );
 
 export default function BusinessAnalyticsScreen() {
-  const { analytics, initializeAnalytics } = useBusinessAnalyticsStore();
+  const { analytics, initializeAnalytics, isLoading } = useBusinessAnalyticsStore();
+  const { user } = useAuthStore();
+  const theme = useAppTheme();
 
   useEffect(() => {
-    initializeAnalytics('merchant_coffee_house_123');
-  }, []);
+    if (user?.merchantId) {
+      initializeAnalytics(user.merchantId);
+    }
+  }, [user?.merchantId]);
+
+  if (isLoading && !analytics) {
+    return (
+      <View style={styles(theme).loading}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles(theme).loadingText, { marginTop: 12 }]}>Loading Business Insights...</Text>
+      </View>
+    );
+  }
 
   if (!analytics) {
     return (
-      <View style={styles.loading}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={styles(theme).loading}>
+        <Text style={styles(theme).loadingText}>No data available</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles(theme).container}>
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={styles(theme).scroll}
+        contentContainerStyle={styles(theme).scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Key Metrics - Simplified to 3 main ones */}
-        <View style={styles.metricsGrid}>
+        <View style={styles(theme).metricsGrid}>
           <MetricCard
             icon={DollarSign}
             label="Total Sales"
-            value={formatCurrency(analytics.overview.totalRevenue)}
+            value={analytics?.overview ? formatCurrency(analytics.overview.totalRevenue) : '₹0'}
             color={theme.colors.success}
+            theme={theme}
           />
           <MetricCard
             icon={TrendingUp}
             label="New Customers"
-            value={`+${analytics.overview.newCustomers}`}
+            value={analytics?.overview ? `+${analytics.overview.newCustomers}` : '0'}
             color={theme.colors.secondary}
+            theme={theme}
           />
           <MetricCard
             icon={ShoppingBag}
             label="Avg Order"
-            value={formatCurrency(analytics.overview.averageOrderValue)}
+            value={analytics?.overview ? formatCurrency(analytics.overview.averageOrderValue) : '₹0'}
             color={theme.colors.warning}
+            theme={theme}
           />
         </View>
 
         {/* Top Products - Simplified List */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Selling Items</Text>
-          <View style={styles.card}>
-            {analytics.customerInsights.behavior.favoriteItems.slice(0, 3).map((item, index) => (
-              <TopItem
-                key={index}
-                rank={index + 1}
-                name={item.item}
-                value={formatCurrency(item.revenue)}
-                count={item.orders}
-              />
-            ))}
+        <View style={styles(theme).section}>
+          <Text style={styles(theme).sectionTitle}>Top Selling Items</Text>
+          <View style={styles(theme).card}>
+            {analytics?.customerInsights?.behavior?.favoriteItems?.length > 0 ? (
+              analytics.customerInsights.behavior.favoriteItems.slice(0, 3).map((item, index) => (
+                <TopItem
+                  key={index}
+                  rank={index + 1}
+                  name={item.item}
+                  value={formatCurrency(item.revenue)}
+                  count={item.orders}
+                  theme={theme}
+                />
+              ))
+            ) : (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: theme.colors.textSecondary }}>No sales data yet</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -116,12 +143,11 @@ export default function BusinessAnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  // Header styles removed as they are no longer used
   loading: {
     flex: 1,
     justifyContent: 'center',

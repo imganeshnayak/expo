@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import {
@@ -17,8 +17,10 @@ import {
   Smartphone,
   Mail,
   LucideIcon,
+  Sun,
 } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import BusinessProfileEditModal from './business-profile-edit-modal';
 
 type MenuItem = {
   icon: LucideIcon;
@@ -30,38 +32,47 @@ type MenuItem = {
   onValueChange?: (value: boolean) => void;
 };
 
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../../store/authStore';
+
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+  const theme = useAppTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/login');
+  };
 
   const merchant = {
-    name: "Joe's Coffee Shop",
-    businessType: 'Café',
-    email: 'joe@coffeeshop.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Main St, San Francisco, CA 94102',
+    name: user?.businessName || '',
+    businessType: user?.businessType || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
     businessHours: {
-      weekdays: '8:00 AM - 8:00 PM',
-      weekends: '9:00 AM - 6:00 PM',
+      weekdays: user?.businessHours?.weekdays || '9:00 AM - 6:00 PM',
+      weekends: user?.businessHours?.weekends || '10:00 AM - 4:00 PM',
     },
-    paymentMethods: ['Credit Card', 'UPI', 'Cash'],
+    paymentMethods: user?.paymentMethods || ['Cash', 'UPI'],
   };
 
   const menuSections: { title: string; items: MenuItem[] }[] = [
     {
       title: 'Business',
       items: [
-        { icon: Store, label: 'Business Information', action: () => { }, badge: null },
-        { icon: Clock, label: 'Business Hours', action: () => { }, badge: null },
-        { icon: CreditCard, label: 'Payment Methods', action: () => { }, badge: '3' },
+        { icon: Store, label: 'Business Information', action: () => setIsEditModalVisible(true), badge: null },
       ],
     },
     {
       title: 'Account',
       items: [
-        { icon: User, label: 'Personal Details', action: () => { }, badge: null },
-        { icon: Shield, label: 'Privacy & Security', action: () => { }, badge: null },
+        { icon: User, label: 'Personal Details', action: () => Alert.alert('Coming Soon', 'This feature is under development.'), badge: null },
+        { icon: Shield, label: 'Privacy & Security', action: () => Alert.alert('Coming Soon', 'This feature is under development.'), badge: null },
       ],
     },
     {
@@ -69,18 +80,28 @@ export default function ProfileScreen() {
       items: [
         { icon: Bell, label: 'Notifications', action: () => { }, badge: null, hasSwitch: true, value: notificationsEnabled, onValueChange: setNotificationsEnabled },
         { icon: Mail, label: 'Email Notifications', action: () => { }, badge: null, hasSwitch: true, value: emailNotifications, onValueChange: setEmailNotifications },
-        { icon: Moon, label: 'Dark Mode', action: () => { }, badge: null, hasSwitch: true, value: darkMode, onValueChange: setDarkMode },
-        { icon: Globe, label: 'Language', action: () => { }, badge: 'English' },
+        {
+          icon: theme.isDark ? Moon : Sun,
+          label: theme.isDark ? 'Dark Mode' : 'Light Mode',
+          action: () => theme.toggleMode(),
+          badge: null,
+          hasSwitch: true,
+          value: theme.isDark,
+          onValueChange: () => theme.toggleMode()
+        },
+        { icon: Globe, label: 'Language', action: () => Alert.alert('Coming Soon', 'This feature is under development.'), badge: 'English' },
       ],
     },
     {
       title: 'Support',
       items: [
-        { icon: HelpCircle, label: 'Help & Support', action: () => { }, badge: null },
-        { icon: Smartphone, label: 'App Version', action: () => { }, badge: 'v1.0.0' },
+        { icon: HelpCircle, label: 'Help & Support', action: () => Alert.alert('Coming Soon', 'This feature is under development.'), badge: null },
+        { icon: Smartphone, label: 'App Version', action: () => Alert.alert('App Version', 'v1.0.0'), badge: 'v1.0.0' },
       ],
     },
   ];
+
+  const styles = getStyles(theme);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -174,18 +195,24 @@ export default function ProfileScreen() {
         ))}
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut color="#E74C3C" size={20} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Edit Modal */}
+      <BusinessProfileEditModal
+        visible={isEditModalVisible}
+        onClose={() => setIsEditModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

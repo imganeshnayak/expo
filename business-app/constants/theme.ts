@@ -1,43 +1,5 @@
-export const theme = {
-  colors: {
-    // Base colors
-    background: '#0A0A0A',
-    surface: '#1A1A1A',
-    surfaceLight: '#2A2A2A',
-    surfaceElevated: '#333333',
-
-    // Text colors
-    text: '#FFFFFF',
-    textSecondary: '#666666',
-    textTertiary: '#999999',
-
-    // Accent colors
-    primary: '#00D9A3',
-    primaryDark: '#00B88A',
-    primaryLight: '#00F0B8',
-
-    // Secondary colors
-    secondary: '#00D9A3',
-    secondaryDark: '#00B88A',
-    secondaryLight: '#00F0B8',
-
-    // Accent colors
-    accent: '#00D9A3',
-    accentDark: '#00B88A',
-
-    // Semantic colors
-    error: '#FF4444',
-    warning: '#F7B731',
-    success: '#00D9A3',
-    info: '#45B7D1',
-
-    // Gradients
-    gradientPrimary: ['#00D9A3', '#00F0B8'] as const,
-    gradientSecondary: ['#1A1A1A', '#2A2A2A'] as const,
-    gradientAccent: ['#00D9A3', '#45B7D1'] as const,
-    gradientSuccess: ['#00D9A3', '#00F0B8'] as const,
-  },
-
+// Common theme properties (spacing, typography, etc.)
+export const commonTheme = {
   spacing: {
     xs: 4,
     sm: 8,
@@ -120,4 +82,90 @@ export const theme = {
     normal: 250,
     slow: 350,
   },
+};
+
+// Dark Mode Colors (Original)
+export const darkColors = {
+  // Base colors
+  background: '#0A0A0A',
+  surface: '#1A1A1A',
+  surfaceLight: '#2A2A2A',
+  surfaceElevated: '#333333',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#666666',
+  textTertiary: '#999999',
+
+  // Accent colors
+  primary: '#00D9A3',
+  primaryDark: '#00B88A',
+  primaryLight: '#00F0B8',
+
+  // Secondary colors
+  secondary: '#00D9A3',
+  secondaryDark: '#00B88A',
+  secondaryLight: '#00F0B8',
+
+  // Accent colors
+  accent: '#00D9A3',
+  accentDark: '#00B88A',
+
+  // Semantic colors
+  error: '#FF4444',
+  warning: '#F7B731',
+  success: '#00D9A3',
+  info: '#45B7D1',
+
+  // Gradients
+  gradientPrimary: ['#00D9A3', '#00F0B8'] as const,
+  gradientSecondary: ['#1A1A1A', '#2A2A2A'] as const,
+  gradientAccent: ['#00D9A3', '#45B7D1'] as const,
+  gradientSuccess: ['#00D9A3', '#00F0B8'] as const,
+};
+
+// Light Mode Colors (New)
+export const lightColors = {
+  // Base colors
+  background: '#F5F7FA', // Light gray/blue tint for modern feel
+  surface: '#FFFFFF',
+  surfaceLight: '#F0F2F5',
+  surfaceElevated: '#FFFFFF',
+
+  // Text colors
+  text: '#1A1A1A',
+  textSecondary: '#666666',
+  textTertiary: '#999999',
+
+  // Accent colors - Adjusted slightly for light mode contrast if needed, but keeping brand identity
+  primary: '#00D9A3',
+  primaryDark: '#00B88A',
+  primaryLight: '#00F0B8',
+
+  // Secondary colors
+  secondary: '#00D9A3',
+  secondaryDark: '#00B88A',
+  secondaryLight: '#00F0B8',
+
+  // Accent colors
+  accent: '#00D9A3',
+  accentDark: '#00B88A',
+
+  // Semantic colors
+  error: '#DC2626', // Slightly darker red for better visibility on white
+  warning: '#D97706', // Darker orange/yellow
+  success: '#059669', // Darker green
+  info: '#0284C7', // Darker blue
+
+  // Gradients
+  gradientPrimary: ['#00D9A3', '#00F0B8'] as const,
+  gradientSecondary: ['#FFFFFF', '#F0F2F5'] as const, // Light surface gradient
+  gradientAccent: ['#00D9A3', '#45B7D1'] as const,
+  gradientSuccess: ['#00D9A3', '#00F0B8'] as const,
+};
+
+// Default export for backward compatibility (Deprecated)
+export const theme = {
+  ...commonTheme,
+  colors: darkColors,
 };

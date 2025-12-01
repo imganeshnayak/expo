@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,7 +26,7 @@ import {
   Eye,
   Rocket,
 } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import {
   useCampaignStore,
   type Campaign,
@@ -34,11 +35,14 @@ import {
   formatBudget,
   calculateBudgetPercentage,
 } from '../../store/campaignStore';
+import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
 
 export default function CampaignsScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const theme = useAppTheme();
   const {
     campaigns,
     templates,
@@ -48,21 +52,36 @@ export default function CampaignsScreen() {
     resumeCampaign,
     archiveCampaign,
     duplicateCampaign,
+    isLoading,
   } = useCampaignStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'paused' | 'completed'>('active');
   const [showCampaignModal, setShowCampaignModal] = useState(false);
 
+  const styles = getStyles(theme);
+
   useEffect(() => {
-    initializeCampaigns('merchant_coffee_house_123');
-    loadTemplates();
-  }, []);
+    if (user?.merchantId) {
+      initializeCampaigns(user.merchantId);
+      loadTemplates();
+    }
+  }, [user?.merchantId]);
+
+  if (isLoading && !refreshing && campaigns.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await initializeCampaigns('merchant_coffee_house_123');
-    setRefreshing(false);
+    if (user?.merchantId) {
+      setRefreshing(true);
+      await initializeCampaigns(user.merchantId);
+      setRefreshing(false);
+    }
   };
 
   const activeCampaigns = campaigns.filter(c => c.status === 'active');
@@ -306,7 +325,7 @@ export default function CampaignsScreen() {
       <CampaignCreatorModal
         visible={showCampaignModal}
         onClose={() => setShowCampaignModal(false)}
-        merchantId="merchant_coffee_house_123"
+        merchantId={user?.merchantId || ''}
       />
 
       {/* Floating Action Button */}
@@ -321,7 +340,7 @@ export default function CampaignsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

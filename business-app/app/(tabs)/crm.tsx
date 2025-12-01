@@ -9,6 +9,7 @@ import {
   Dimensions,
   RefreshControl,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,7 +32,7 @@ import {
   Phone,
   MessageCircle,
 } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import {
   useCRMStore,
   type CustomerProfile,
@@ -48,6 +49,7 @@ type TabName = 'customers' | 'segments' | 'messages';
 
 export default function CRMScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
   const {
     customers,
     segments,
@@ -56,6 +58,7 @@ export default function CRMScreen() {
     refreshSegmentCounts,
     getTopCustomers,
     getAtRiskCustomers,
+    isLoading,
   } = useCRMStore();
 
   const [activeTab, setActiveTab] = useState<TabName>('customers');
@@ -63,10 +66,20 @@ export default function CRMScreen() {
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
 
+  const styles = getStyles(theme);
+
   useEffect(() => {
     initializeCustomers('merchant_coffee_house_123');
     refreshSegmentCounts();
   }, []);
+
+  if (isLoading && !refreshing && customers.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -511,7 +524,7 @@ export default function CRMScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

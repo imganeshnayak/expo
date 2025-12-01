@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Mail, Lock, User, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -14,15 +15,34 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
+
+    const { register, error, isLoading } = useAuthStore();
 
     const handleRegister = async () => {
-        setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
-            router.replace('/analytics');
-        }, 1500);
+        if (!fullName || !email || !password || !confirmPassword) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            Alert.alert('Error', 'Passwords do not match');
+            return;
+        }
+
+        try {
+            await register({
+                email,
+                password,
+                businessName: 'My Business', // TODO: Add business name input
+                name: fullName,
+                phone: '1234567890', // TODO: Add phone input
+            });
+            // Navigation is handled by the store or we can do it here
+            router.replace('/(tabs)/analytics');
+        } catch (err: any) {
+            console.error('Registration error:', err);
+            Alert.alert('Error', err.message || 'Registration failed. Please try again.');
+        }
     };
 
     return (
@@ -108,7 +128,7 @@ export default function RegisterScreen() {
                         <TouchableOpacity
                             style={styles.button}
                             onPress={handleRegister}
-                            disabled={loading}
+                            disabled={isLoading}
                         >
                             <LinearGradient
                                 colors={theme.colors.gradientPrimary}
@@ -116,8 +136,8 @@ export default function RegisterScreen() {
                                 end={{ x: 1, y: 0 }}
                                 style={styles.buttonGradient}
                             >
-                                <Text style={styles.buttonText}>{loading ? 'Creating Account...' : 'Sign Up'}</Text>
-                                {!loading && <ArrowRight color="#000" size={20} />}
+                                <Text style={styles.buttonText}>{isLoading ? 'Creating Account...' : 'Sign Up'}</Text>
+                                {!isLoading && <ArrowRight color="#000" size={20} />}
                             </LinearGradient>
                         </TouchableOpacity>
 

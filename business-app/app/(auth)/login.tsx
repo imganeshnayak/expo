@@ -8,19 +8,25 @@ import { theme } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
+import { useAuthStore } from '../../store/authStore';
+
+// ...
+
 export default function LoginScreen() {
     const router = useRouter();
+    const { login, isLoading, error } = useAuthStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-        setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
+        if (!email || !password) return;
+
+        try {
+            await login(email, password);
             router.replace('/analytics');
-        }, 1500);
+        } catch (err) {
+            console.error('Login failed', err);
+        }
     };
 
     return (
@@ -71,6 +77,10 @@ export default function LoginScreen() {
                         />
                     </View>
 
+                    {error && (
+                        <Text style={{ color: theme.colors.error, textAlign: 'center' }}>{error}</Text>
+                    )}
+
                     <TouchableOpacity style={styles.forgotPassword}>
                         <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                     </TouchableOpacity>
@@ -78,7 +88,7 @@ export default function LoginScreen() {
                     <TouchableOpacity
                         style={styles.button}
                         onPress={handleLogin}
-                        disabled={loading}
+                        disabled={isLoading}
                     >
                         <LinearGradient
                             colors={theme.colors.gradientPrimary}
@@ -86,8 +96,8 @@ export default function LoginScreen() {
                             end={{ x: 1, y: 0 }}
                             style={styles.buttonGradient}
                         >
-                            <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
-                            {!loading && <ArrowRight color="#000" size={20} />}
+                            <Text style={styles.buttonText}>{isLoading ? 'Signing In...' : 'Sign In'}</Text>
+                            {!isLoading && <ArrowRight color="#000" size={20} />}
                         </LinearGradient>
                     </TouchableOpacity>
 

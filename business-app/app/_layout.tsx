@@ -6,17 +6,27 @@ import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
-import { theme } from '../constants/theme';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 SplashScreen.preventAutoHideAsync();
 
+import { useAuthStore } from '../store/authStore';
+
+// ... imports ...
+
 export default function RootLayout() {
+  const loadUser = useAuthStore((state) => state.loadUser);
+  const theme = useAppTheme();
   const [loaded, error] = useFonts({
     Belanosima: Belanosima_400Regular,
     'Belanosima-SemiBold': Belanosima_600SemiBold,
     'Belanosima-Bold': Belanosima_700Bold,
     EricaOne: EricaOne_400Regular,
   });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
 
   useEffect(() => {
     if (error) throw error;
@@ -34,7 +44,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

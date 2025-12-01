@@ -4,15 +4,19 @@ import { Tabs } from 'expo-router';
 import { BarChart3, Megaphone, Users, User, Bell } from 'lucide-react-native';
 import { useNotificationStore } from '../../store/notificationStore';
 import NotificationCenter from './notifications';
-import { theme } from '../../constants/theme';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 export default function BusinessLayout() {
     const [showNotifications, setShowNotifications] = useState(false);
     const unreadCount = useNotificationStore(state => state.unreadCount);
+    const theme = useAppTheme();
+
+    const styles = getStyles(theme);
 
     return (
         <>
             <Tabs
+                key={theme.mode}
                 screenOptions={{
                     tabBarActiveTintColor: theme.colors.primary,
                     tabBarInactiveTintColor: theme.colors.textTertiary,
@@ -114,6 +118,12 @@ export default function BusinessLayout() {
                         href: null, // Hide from tabs - modal only
                     }}
                 />
+                <Tabs.Screen
+                    name="business-profile-edit-modal"
+                    options={{
+                        href: null, // Hide from tabs - modal only
+                    }}
+                />
             </Tabs>
 
             <NotificationCenter
@@ -124,7 +134,7 @@ export default function BusinessLayout() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
     notificationButton: {
         marginRight: 16,
         position: 'relative',

@@ -162,9 +162,50 @@ export const updateMerchantProfile = async (req: Request, res: Response) => {
 
         await merchantUser.save();
 
+        // Update merchant business details
+        if (merchantUser.merchantId) {
+            const merchant = await Merchant.findById(merchantUser.merchantId);
+            if (merchant) {
+                if (req.body.businessName) merchant.name = req.body.businessName;
+                if (req.body.address) merchant.location.address = req.body.address;
+                if (req.body.businessType) merchant.category = [req.body.businessType];
+                if (req.body.businessHours) merchant.businessHours = req.body.businessHours;
+                if (req.body.paymentMethods) merchant.paymentMethods = req.body.paymentMethods;
+
+                await merchant.save();
+            }
+        }
+
+        // Fetch updated user with merchant details
+        const updatedUser = await MerchantUser.findById(req.user?._id).populate('merchantId');
+        const merchant = updatedUser?.merchantId as any;
+
         res.json({
             success: true,
-            user: merchantUser,
+            user: {
+                id: updatedUser?._id,
+                email: updatedUser?.email,
+                profile: updatedUser?.profile,
+                role: updatedUser?.role,
+                settings: updatedUser?.settings,
+                merchantId: merchant._id,
+                businessName: merchant.name,
+                businessType: merchant.category?.[0],
+                address: merchant.location?.address,
+                businessHours: merchant.businessHours,
+                paymentMethods: merchant.paymentMethods,
+                merchant: {
+                    name: merchant.name,
+                    description: merchant.description,
+                    category: merchant.category,
+                    logo: merchant.logo,
+                    contact: merchant.contact,
+                    location: merchant.location,
+                    rating: merchant.rating,
+                    businessHours: merchant.businessHours,
+                    paymentMethods: merchant.paymentMethods,
+                },
+            },
         });
     } catch (error: any) {
         res.status(500).json({ message: error.message });

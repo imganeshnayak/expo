@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../lib/api';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -29,6 +30,7 @@ export interface Campaign {
   id: string;
   name: string;
   type: CampaignType;
+  category: CampaignCategory;
   status: CampaignStatus;
   budget: {
     total: number;
@@ -85,7 +87,7 @@ interface CampaignState {
   draftCampaign: Partial<Campaign> | null;
   currentStep: number;
   isLoading: boolean;
-  
+
   // Actions
   initializeCampaigns: (merchantId: string) => void;
   loadTemplates: () => void;
@@ -338,6 +340,7 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       id: 'camp_001',
       name: '₹100 Stamp Card Campaign',
       type: 'stamp_card',
+      category: 'loyalty',
       status: 'active',
       merchantId,
       budget: {
@@ -370,6 +373,7 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       id: 'camp_002',
       name: 'Weekend Special - 20% Off',
       type: 'discount',
+      category: 'retention',
       status: 'active',
       merchantId,
       budget: {
@@ -401,6 +405,7 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       id: 'camp_003',
       name: 'First Visit Free Ride',
       type: 'ride_reimbursement',
+      category: 'acquisition',
       status: 'paused',
       merchantId,
       budget: {
@@ -540,13 +545,31 @@ export const useCampaignStore = create<CampaignState>()(
       currentStep: 0,
       isLoading: false,
 
-      initializeCampaigns: (merchantId: string) => {
-        const existingCampaigns = get().campaigns.filter(c => c.merchantId === merchantId);
-        
-        if (existingCampaigns.length === 0) {
+      initializeCampaigns: async (merchantId: string) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.get<{
+            success: boolean;
+            campaigns: Campaign[];
+          }>('/api/campaigns');
+
+          set({
+            campaigns: (response.campaigns || []).map((c: any) => ({
+              ...c,
+              id: c._id || c.id,
+            })),
+            isLoading: false
+          });
+          console.log(`🎯 Loaded ${response.campaigns?.length || 0} campaigns from API`);
+        } catch (error: any) {
+          console.error('❌ Failed to load campaigns:', error.message);
+          // Fallback to sample data
           const sampleCampaigns = generateSampleCampaigns(merchantId);
-          set({ campaigns: sampleCampaigns });
-          console.log(`🎯 Initialized ${sampleCampaigns.length} sample campaigns for merchant ${merchantId}`);
+          set({
+            campaigns: sampleCampaigns,
+            isLoading: false
+          });
+          console.log(`🎯 Using ${sampleCampaigns.length} sample campaigns (API unavailable)`);
         }
       },
 
@@ -563,6 +586,7 @@ export const useCampaignStore = create<CampaignState>()(
           id: `camp_${Date.now()}`,
           name: template.name,
           merchantId,
+          category: template.category,
           status: 'draft',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -603,10 +627,11 @@ export const useCampaignStore = create<CampaignState>()(
         if (!draftCampaign || !draftCampaign.id) return;
 
         const existingIndex = campaigns.findIndex(c => c.id === draftCampaign.id);
-        
+
         if (existingIndex >= 0) {
-          campaigns[existingIndex] = { ...campaigns[existingIndex], ...draftCampaign };
-          set({ campaigns: [...campaigns] });
+          const updatedCampaigns = [...campaigns];
+          updatedCampaigns[existingIndex] = { ...campaigns[existingIndex], ...draftCampaign };
+          set({ campaigns: updatedCampaigns });
         } else {
           set({ campaigns: [...campaigns, draftCampaign as Campaign] });
         }
@@ -614,58 +639,95 @@ export const useCampaignStore = create<CampaignState>()(
         console.log(`💾 Saved draft campaign: ${draftCampaign.name}`);
       },
 
-      launchCampaign: () => {
+      launchCampaign: async () => {
         const { draftCampaign, campaigns } = get();
-        if (!draftCampaign || !draftCampaign.id) return;
+        if (!draftCampaign) return;
 
-        const launchedCampaign: Campaign = {
-          ...(draftCampaign as Campaign),
-          status: 'active',
-          updatedAt: Date.now(),
-        };
+        set({ isLoading: true });
+        try {
+          const campaignData = {
+            ...draftCampaign,
+            status: 'active',
+          };
 
-        const existingIndex = campaigns.findIndex(c => c.id === launchedCampaign.id);
-        
-        if (existingIndex >= 0) {
-          campaigns[existingIndex] = launchedCampaign;
-        } else {
-          campaigns.push(launchedCampaign);
+          let savedCampaign: Campaign;
+
+          if (draftCampaign.id && campaigns.some(c => c.id === draftCampaign.id)) {
+            // Update existing
+            await api.put(`/api/campaigns/${draftCampaign.id}`, campaignData);
+            savedCampaign = campaignData as Campaign; // Optimistic
+          } else {
+            // Create new
+            const response = await api.post<{ success: boolean; campaign: any }>('/api/campaigns', campaignData);
+            savedCampaign = { ...response.campaign, id: response.campaign._id || response.campaign.id };
+          }
+
+          const existingIndex = campaigns.findIndex(c => c.id === savedCampaign.id);
+          const updatedCampaigns = [...campaigns];
+
+          if (existingIndex >= 0) {
+            updatedCampaigns[existingIndex] = savedCampaign;
+          } else {
+            updatedCampaigns.push(savedCampaign);
+          }
+
+          set({
+            campaigns: updatedCampaigns,
+            draftCampaign: null,
+            currentStep: 0,
+            isLoading: false,
+          });
+
+          console.log(`🚀 Launched campaign: ${savedCampaign.name}`);
+        } catch (error: any) {
+          console.error('❌ Failed to launch campaign:', error.message);
+          set({ isLoading: false });
         }
-
-        set({ 
-          campaigns: [...campaigns],
-          draftCampaign: null,
-          currentStep: 0,
-        });
-
-        console.log(`🚀 Launched campaign: ${launchedCampaign.name}`);
       },
 
-      pauseCampaign: (campaignId: string) => {
-        const { campaigns } = get();
-        const updatedCampaigns = campaigns.map(c =>
-          c.id === campaignId ? { ...c, status: 'paused' as CampaignStatus, updatedAt: Date.now() } : c
-        );
-        set({ campaigns: updatedCampaigns });
-        console.log(`⏸️ Paused campaign: ${campaignId}`);
+      pauseCampaign: async (campaignId: string) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/pause`);
+
+          const { campaigns } = get();
+          const updatedCampaigns = campaigns.map(c =>
+            c.id === campaignId ? { ...c, status: 'paused' as CampaignStatus, updatedAt: Date.now() } : c
+          );
+          set({ campaigns: updatedCampaigns });
+          console.log(`⏸️ Paused campaign: ${campaignId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to pause campaign:', error.message);
+        }
       },
 
-      resumeCampaign: (campaignId: string) => {
-        const { campaigns } = get();
-        const updatedCampaigns = campaigns.map(c =>
-          c.id === campaignId ? { ...c, status: 'active' as CampaignStatus, updatedAt: Date.now() } : c
-        );
-        set({ campaigns: updatedCampaigns });
-        console.log(`▶️ Resumed campaign: ${campaignId}`);
+      resumeCampaign: async (campaignId: string) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/resume`);
+
+          const { campaigns } = get();
+          const updatedCampaigns = campaigns.map(c =>
+            c.id === campaignId ? { ...c, status: 'active' as CampaignStatus, updatedAt: Date.now() } : c
+          );
+          set({ campaigns: updatedCampaigns });
+          console.log(`▶️ Resumed campaign: ${campaignId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to resume campaign:', error.message);
+        }
       },
 
-      archiveCampaign: (campaignId: string) => {
-        const { campaigns } = get();
-        const updatedCampaigns = campaigns.map(c =>
-          c.id === campaignId ? { ...c, status: 'archived' as CampaignStatus, updatedAt: Date.now() } : c
-        );
-        set({ campaigns: updatedCampaigns });
-        console.log(`📦 Archived campaign: ${campaignId}`);
+      archiveCampaign: async (campaignId: string) => {
+        try {
+          await api.post(`/api/campaigns/${campaignId}/archive`);
+
+          const { campaigns } = get();
+          const updatedCampaigns = campaigns.map(c =>
+            c.id === campaignId ? { ...c, status: 'archived' as CampaignStatus, updatedAt: Date.now() } : c
+          );
+          set({ campaigns: updatedCampaigns });
+          console.log(`📦 Archived campaign: ${campaignId}`);
+        } catch (error: any) {
+          console.error('❌ Failed to archive campaign:', error.message);
+        }
       },
 
       updateCampaignPerformance: (campaignId: string, metrics: Partial<Campaign['performance']>) => {
@@ -677,7 +739,7 @@ export const useCampaignStore = create<CampaignState>()(
               performance: { ...c.performance, ...metrics },
               budget: {
                 ...c.budget,
-                spent: metrics.conversions 
+                spent: metrics.conversions
                   ? c.budget.spent + (metrics.conversions * c.budget.total / 100)
                   : c.budget.spent,
               },
@@ -693,7 +755,7 @@ export const useCampaignStore = create<CampaignState>()(
         const { campaigns } = get();
         const campaign = campaigns.find(c => c.id === campaignId);
         if (!campaign) return [];
-        
+
         return generateAIOptimizations(campaign);
       },
 
@@ -702,7 +764,7 @@ export const useCampaignStore = create<CampaignState>()(
         const updatedCampaigns = campaigns.map(c => {
           if (c.id === optimization.campaignId && optimization.action) {
             const updates: Partial<Campaign> = { updatedAt: Date.now() };
-            
+
             if (optimization.type === 'budget') {
               updates.budget = { ...c.budget, ...optimization.action.params };
             } else if (optimization.type === 'targeting') {
@@ -712,12 +774,12 @@ export const useCampaignStore = create<CampaignState>()(
             } else if (optimization.type === 'timing') {
               updates.targeting = { ...c.targeting, ...optimization.action.params };
             }
-            
+
             return { ...c, ...updates };
           }
           return c;
         });
-        
+
         set({ campaigns: updatedCampaigns });
         console.log(`🤖 Applied AI optimization: ${optimization.title}`);
       },
@@ -748,7 +810,7 @@ export const useCampaignStore = create<CampaignState>()(
           updatedAt: Date.now(),
         };
 
-        set({ 
+        set({
           campaigns: [...campaigns, duplicated],
           draftCampaign: duplicated,
           currentStep: 0,
