@@ -16,6 +16,8 @@ import { theme } from '@/constants/theme';
 import { useWalletStore } from '@/store/walletStore';
 import { useLoyaltyStore } from '@/store/loyaltyStore';
 import { useMissionStore } from '@/store/missionStore';
+import { useUserStore } from '@/store/userStore';
+import { canAccessFeature } from '@/constants/gamification';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.7;
@@ -32,6 +34,8 @@ export default function ScannerScreen() {
   const successAnim = React.useRef(new Animated.Value(0)).current;
   
   const { processCashback, activeBookings } = useWalletStore();
+  const { gamification } = useUserStore();
+  const canAccessLoyaltyCards = canAccessFeature(gamification.xp.current, 'LOYALTY_CARDS');
 
   useEffect(() => {
     getCameraPermissions();
@@ -167,19 +171,33 @@ export default function ScannerScreen() {
         ? `Connected to ${data.merchantName || 'Merchant'}! \n🎯 Stamp earned on your loyalty card!`
         : `Connected to ${data.merchantName || 'Merchant'}. Check your wallet for new deals!`;
       
+      const buttons = [
+        {
+          text: stampEarned ? 'View Loyalty Cards' : 'View Wallet',
+          onPress: () => {
+            if (stampEarned && !canAccessLoyaltyCards) {
+              Alert.alert(
+                'Feature Locked',
+                'Unlock Loyalty Cards at Silver I rank (750 XP). Complete missions to earn XP!',
+                [
+                  { text: 'OK' },
+                ]
+              );
+            } else {
+              router.push(stampEarned ? '/loyalty' : '/(tabs)/profile');
+            }
+          },
+        },
+        {
+          text: 'Done',
+          onPress: () => router.back(),
+        },
+      ];
+      
       Alert.alert(
         stampEarned ? 'Stamp Earned! 🎯' : 'Merchant Scanned!',
         message,
-        [
-          {
-            text: stampEarned ? 'View Loyalty Cards' : 'View Wallet',
-            onPress: () => router.push(stampEarned ? '/loyalty' : '/(tabs)/profile'),
-          },
-          {
-            text: 'Done',
-            onPress: () => router.back(),
-          },
-        ]
+        buttons
       );
     } else if (data.type === 'user') {
       Alert.alert(

@@ -7,8 +7,8 @@ import connectDB from './config/database';
 import authRoutes from './routes/auth';
 import walletRoutes from './routes/wallet';
 import dealRoutes from './routes/deals';
-import ondcRetailRoutes from './routes/ondcRetail';
-import rideRoutes from './routes/rides';
+import userRoutes from './routes/users';
+
 import loyaltyRoutes from './routes/loyalty';
 // Business App Routes
 import merchantAuthRoutes from './routes/business/merchantAuth';
@@ -16,6 +16,7 @@ import crmRoutes from './routes/business/crm';
 import campaignRoutes from './routes/business/campaigns';
 import analyticsRoutes from './routes/business/analytics';
 import notificationRoutes from './routes/business/notifications';
+import uploadRoutes from './routes/uploadRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -48,8 +49,8 @@ app.use((req: Request, res: Response, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/deals', dealRoutes);
-app.use('/api/ondc/retail', ondcRetailRoutes);
-app.use('/api/rides', rideRoutes);
+app.use('/api/users', userRoutes);
+
 app.use('/api/loyalty', loyaltyRoutes);
 
 // Business App Routes
@@ -58,6 +59,7 @@ app.use('/api/crm', crmRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Basic route
 app.get('/', (req: Request, res: Response) => {

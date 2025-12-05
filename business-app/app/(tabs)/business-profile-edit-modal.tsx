@@ -10,10 +10,14 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    Image,
+    Alert,
 } from 'react-native';
-import { X, Save, Check, Plus, Trash2 } from 'lucide-react-native';
+import { X, Save, Check, Plus, Trash2, Camera, Upload } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../lib/api';
 
 interface BusinessProfileEditModalProps {
     visible: boolean;
@@ -33,9 +37,11 @@ export default function BusinessProfileEditModal({ visible, onClose }: BusinessP
         weekdaysHours: '',
         weekendsHours: '',
         paymentMethods: [] as string[],
+        logo: '',
     });
 
     const [newPaymentMethod, setNewPaymentMethod] = useState('');
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (visible && user) {
@@ -47,6 +53,7 @@ export default function BusinessProfileEditModal({ visible, onClose }: BusinessP
                 weekdaysHours: user.businessHours?.weekdays || '9:00 AM - 6:00 PM',
                 weekendsHours: user.businessHours?.weekends || '10:00 AM - 4:00 PM',
                 paymentMethods: user.paymentMethods || ['Cash', 'UPI'],
+                logo: user.logo || '',
             });
         }
     }, [visible, user]);
@@ -63,6 +70,7 @@ export default function BusinessProfileEditModal({ visible, onClose }: BusinessP
                     weekends: formData.weekendsHours,
                 },
                 paymentMethods: formData.paymentMethods,
+                logo: formData.logo,
             });
             onClose();
         } catch (error) {
@@ -88,6 +96,32 @@ export default function BusinessProfileEditModal({ visible, onClose }: BusinessP
         }));
     };
 
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            handleImageUpload(result.assets[0].uri);
+        }
+    };
+
+    const handleImageUpload = async (uri: string) => {
+        setUploading(true);
+        try {
+            const imageUrl = await api.uploadImage(uri);
+            setFormData(prev => ({ ...prev, logo: imageUrl }));
+        } catch (error) {
+            Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+            console.error(error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     return (
         <Modal
             visible={visible}
@@ -108,6 +142,30 @@ export default function BusinessProfileEditModal({ visible, onClose }: BusinessP
                     </View>
 
                     <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+                        {/* Logo Upload */}
+                        <View style={styles.logoSection}>
+                            <TouchableOpacity onPress={pickImage} disabled={uploading}>
+                                <View style={styles.logoContainer}>
+                                    {formData.logo ? (
+                                        <Image source={{ uri: formData.logo }} style={styles.logoImage} />
+                                    ) : (
+                                        <View style={styles.logoPlaceholder}>
+                                            <Camera size={32} color={theme.colors.textSecondary} />
+                                        </View>
+                                    )}
+                                    {uploading && (
+                                        <View style={styles.uploadingOverlay}>
+                                            <ActivityIndicator color="#FFF" />
+                                        </View>
+                                    )}
+                                    <View style={styles.editIconContainer}>
+                                        <Upload size={14} color="#FFF" />
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                            <Text style={styles.logoLabel}>Tap to change logo</Text>
+                        </View>
+
                         {/* Basic Info */}
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Basic Details</Text>
@@ -276,6 +334,52 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     formContainer: {
         padding: 20,
+    },
+    logoSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    logoContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.surfaceLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    logoImage: {
+        width: '100%',
+        height: '100%',
+    },
+    logoPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    uploadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editIconContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        height: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logoLabel: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        marginTop: 8,
+        fontFamily: theme.fontFamily.primary,
     },
     section: {
         marginBottom: 24,

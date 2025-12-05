@@ -93,7 +93,7 @@ export default function SearchScreen() {
         </View>
         <Text style={styles.resultBusiness}>{result.business}</Text>
         <Text style={styles.resultCategory}>{result.category}</Text>
-        
+
         <View style={styles.resultMeta}>
           <View style={styles.metaItem}>
             <Star size={14} color={theme.colors.primary} fill={theme.colors.primary} />
@@ -112,8 +112,8 @@ export default function SearchScreen() {
 
         {result.originalPrice && (
           <View style={styles.priceContainer}>
-            <Text style={styles.originalPrice}>${result.originalPrice}</Text>
-            <Text style={styles.discountedPrice}>${result.discountedPrice}</Text>
+            <Text style={styles.originalPrice}>₹{result.originalPrice}</Text>
+            <Text style={styles.discountedPrice}>₹{result.discountedPrice}</Text>
           </View>
         )}
       </View>

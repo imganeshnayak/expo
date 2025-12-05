@@ -26,6 +26,7 @@ import {
 import { theme } from '@/constants/theme';
 import { useLoyaltyStore, StampCard, getStampIcon, formatReward } from '@/store/loyaltyStore';
 import QRCode from 'react-native-qrcode-svg';
+import { LockedFeatureOverlay } from '@/components/gamification/LockedFeatureOverlay';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2; // 2 columns with padding
@@ -371,9 +372,10 @@ export default function LoyaltyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <LockedFeatureOverlay featureId="LOYALTY_CARDS" minRank="Silver I">
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Loyalty Cards</Text>
           <Text style={styles.headerSubtitle}>Collect stamps & earn rewards</Text>
@@ -438,6 +440,7 @@ export default function LoyaltyScreen() {
       <StampCardDetailModal />
       <RedeemQRModal />
     </SafeAreaView>
+    </LockedFeatureOverlay>
   );
 }
 

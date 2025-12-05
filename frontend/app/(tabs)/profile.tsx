@@ -13,33 +13,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, TrendingUp, TrendingDown, ArrowDownToLine, Award, Users, Trophy, Zap, Brain, Sparkles, Car } from 'lucide-react-native';
-import { theme } from '@/constants/theme';
-import { useWalletStore, TransactionType } from '@/store/walletStore';
-import { useRideStore } from '@/store/rideStore';
+import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, TrendingUp, TrendingDown, ArrowDownToLine, Award, Users, Zap, Moon, Sun } from 'lucide-react-native';
 import { useLoyaltyStore } from '@/store/loyaltyStore';
-
-// --- Mock Data ---
-const userData = {
-  name: 'Sarah Johnson',
-  email: 'sarah.johnson@email.com',
-  location: 'Downtown, City Center',
-  memberSince: 'January 2024',
-  savedDeals: 12,
-  totalSavings: 324,
-  favoriteBusinesses: 8,
-};
-
-const recentActivity = [
-  { id: '1', type: 'deal_used', title: 'Used 50% Off Pizza Deal', business: "Mario's Pizza Palace", date: '2 days ago', savings: 12.5 },
-  { id: '2', type: 'deal_saved', title: 'Saved Spa Service Deal', business: 'Serenity Wellness Spa', date: '1 week ago', savings: 0 },
-  { id: '3', type: 'business_followed', title: 'Followed Urban Brew Cafe', business: 'Urban Brew Cafe', date: '2 weeks ago', savings: 0 },
-];
+import { useAppTheme, useThemeStore } from '@/store/themeStore';
+import { useAuth } from '../_layout';
+import { authService, loyaltyService, LoyaltyProfile } from '@/services/api';
+import { useUserStore } from '@/store/userStore';
+import { canAccessFeature } from '@/constants/gamification';
 
 // --- Micro-Animation Components ---
 
 // 1. Scale Button for Press Feedback
-const ScaleButton = ({ children, onPress, style, activeOpacity = 0.9 }) => {
+const ScaleButton = ({ children, onPress, style, activeOpacity = 0.9 }: { children: React.ReactNode; onPress: () => void; style?: any; activeOpacity?: number }) => {
   const scaleValue = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => {
@@ -76,7 +61,7 @@ const ScaleButton = ({ children, onPress, style, activeOpacity = 0.9 }) => {
 };
 
 // 2. Fade In View for Entry Animations
-const FadeInView = ({ children, delay = 0 }) => {
+const FadeInView = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(20)).current;
 
@@ -108,24 +93,115 @@ const FadeInView = ({ children, delay = 0 }) => {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [locationEnabled, setLocationEnabled] = useState(true);
-  const [favoriteMerchants, setFavoriteMerchants] = useState(['Mario\'s Pizza Palace', 'Urban Brew Cafe']);
+  const { user, logout } = useAuth();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.profile?.preferences?.notifications ?? true);
+  const [locationEnabled, setLocationEnabled] = useState(user?.profile?.preferences?.locationServices ?? true);
+  const [loyaltyProfile, setLoyaltyProfile] = useState<LoyaltyProfile | null>(null);
+  const [claimedDeals, setClaimedDeals] = useState<any[]>([]);
+  const [favoritedDeals, setFavoritedDeals] = useState<any[]>([]);
+  const [loadingClaimed, setLoadingClaimed] = useState(false);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
 
-  const { rideHistory } = useRideStore();
-  const { stampCards, totalStampsEarned } = useLoyaltyStore();
+  useEffect(() => {
+    loadLoyaltyProfile();
+    loadClaimedDeals();
+    loadFavorites();
+  }, []);
 
-  const toggleFavoriteMerchant = (merchant) => {
-    setFavoriteMerchants(prev =>
-      prev.includes(merchant) ? prev.filter(m => m !== merchant) : [...prev, merchant]
-    );
+  useEffect(() => {
+    // Update local state when user profile changes
+    if (user?.profile?.preferences) {
+      setNotificationsEnabled(user.profile.preferences.notifications ?? true);
+      setLocationEnabled(user.profile.preferences.locationServices ?? true);
+    }
+  }, [user]);
+
+  const loadLoyaltyProfile = async () => {
+    try {
+      const response = await loyaltyService.getProfile();
+      if (response.data) {
+        setLoyaltyProfile(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load loyalty profile', error);
+    }
   };
 
-  const MenuSection = ({ title, items }) => (
+  const loadClaimedDeals = async () => {
+    try {
+      setLoadingClaimed(true);
+      const { userService } = await import('@/services/api');
+      const response = await userService.getClaimedDeals();
+      if (response.data) {
+        setClaimedDeals(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load claimed deals', error);
+    } finally {
+      setLoadingClaimed(false);
+    }
+  };
+
+  const loadFavorites = async () => {
+    try {
+      setLoadingFavorites(true);
+      const { dealsService } = await import('@/services/api');
+      const response = await dealsService.getFavorites();
+      if (response.data) {
+        setFavoritedDeals(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load favorites', error);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      logout();
+      router.replace('/auth/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+      Alert.alert('Error', 'Failed to logout');
+    }
+  };
+
+  const handleNotificationToggle = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    // TODO: Add API call to update user preferences when backend endpoint is available
+    // await authService.updatePreferences({ notifications: value });
+  };
+
+  const handleLocationToggle = async (value: boolean) => {
+    setLocationEnabled(value);
+    // TODO: Add API call to update user preferences when backend endpoint is available
+    // await authService.updatePreferences({ locationServices: value });
+  };
+
+  const theme = useAppTheme();
+  const { isDarkMode, toggleTheme } = useThemeStore();
+  const styles = getStyles(theme);
+  const { gamification } = useUserStore();
+
+  const { stampCards } = useLoyaltyStore();
+  const canAccessLoyaltyCards = canAccessFeature(gamification.xp.current, 'LOYALTY_CARDS');
+
+  const recentActivity = loyaltyProfile?.history.map(h => ({
+    id: h._id,
+    type: h.type === 'earn' ? 'deal_saved' : 'deal_used',
+    title: h.description,
+    business: h.source || 'UMA Platform',
+    date: new Date(h.createdAt).toLocaleDateString(),
+    savings: h.type === 'earn' ? h.amount : 0
+  })) || [];
+
+  const MenuSection = ({ title, items }: { title: string; items: any[] }) => (
     <View style={styles.menuSection}>
       <Text style={styles.menuSectionTitle}>{title}</Text>
       {items.map((item, index) => (
-        <ScaleButton key={index} onPress={item.onPress}>
+        <ScaleButton key={index} onPress={item.onPress} style={undefined}>
           <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
               <View style={[styles.menuIcon, { backgroundColor: item.iconBg }]}>
@@ -156,7 +232,7 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const ActivityItem = ({ activity }) => {
+  const ActivityItem = ({ activity }: { activity: any }) => {
     const getActivityIcon = () => {
       switch (activity.type) {
         case 'deal_used': return <Gift size={16} color={theme.colors.primary} />;
@@ -179,39 +255,48 @@ export default function ProfileScreen() {
         </View>
         {activity.savings > 0 && (
           <View style={styles.savingsTag}>
-            <Text style={styles.savingsText}>+${activity.savings}</Text>
+            <Text style={styles.savingsText}>+{activity.savings} pts</Text>
           </View>
         )}
       </View>
     );
   };
 
+  const handleLoyaltyCardsPress = () => {
+    if (canAccessLoyaltyCards) {
+      router.push('/loyalty');
+    } else {
+      Alert.alert(
+        'Feature Locked',
+        'Unlock Loyalty Cards at Silver I rank (750 XP). Complete missions to earn XP!',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'View Missions', onPress: () => router.push('/(tabs)/missions') },
+        ]
+      );
+    }
+  };
+
   const menuSections = [
-    {
-      title: 'AI & Personalization',
-      items: [
-        { icon: Brain, iconBg: 'rgba(139, 92, 246, 0.1)', iconColor: '#8B5CF6', title: 'AI Profile', subtitle: 'Your personality & insights', onPress: () => router.push('/ai-profile') },
-        { icon: Sparkles, iconBg: 'rgba(139, 92, 246, 0.1)', iconColor: '#8B5CF6', title: 'AI Recommendations', subtitle: 'Personalized for you', onPress: () => router.push('/ai-recommendations') },
-      ],
-    },
-    {
-      title: 'Coupons & Savings',
-      items: [
-        { icon: Gift, iconBg: 'rgba(245, 158, 11, 0.1)', iconColor: '#F59C0B', title: 'Coupon Discovery', subtitle: 'Find viral deals', onPress: () => router.push('/coupon-discovery') },
-        { icon: Trophy, iconBg: 'rgba(16, 185, 129, 0.1)', iconColor: '#10B981', title: 'Savings Dashboard', subtitle: 'Track achievements', onPress: () => router.push('/savings-dashboard') },
-      ],
-    },
     {
       title: 'My Activity',
       items: [
-        { icon: Award, iconBg: 'rgba(243, 156, 18, 0.1)', iconColor: '#F39C12', title: 'Loyalty Cards', subtitle: `${stampCards.length} active cards`, onPress: () => router.push('/loyalty') },
+        {
+          icon: Award,
+          iconBg: 'rgba(243, 156, 18, 0.1)',
+          iconColor: '#F39C12',
+          title: 'Loyalty Cards',
+          subtitle: canAccessLoyaltyCards ? `${stampCards.length} active cards` : '🔒 Unlock at Silver I',
+          onPress: handleLoyaltyCardsPress
+        },
       ],
     },
     {
       title: 'Preferences',
       items: [
-        { icon: Bell, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Push Notifications', subtitle: 'Get deal alerts', toggle: notificationsEnabled, onToggle: setNotificationsEnabled },
-        { icon: MapPin, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Location Services', subtitle: 'Find nearby deals', toggle: locationEnabled, onToggle: setLocationEnabled },
+        { icon: Bell, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Push Notifications', subtitle: 'Get deal alerts', toggle: notificationsEnabled, onToggle: handleNotificationToggle },
+        { icon: MapPin, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Location Services', subtitle: 'Find nearby deals', toggle: locationEnabled, onToggle: handleLocationToggle },
+        { icon: isDarkMode ? Moon : Sun, iconBg: 'rgba(0, 217, 163, 0.1)', iconColor: theme.colors.primary, title: 'Dark Mode', subtitle: 'Toggle app theme', toggle: isDarkMode, onToggle: toggleTheme },
       ],
     },
   ];
@@ -233,11 +318,11 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
               <View style={styles.userDetails}>
-                <Text style={styles.userName}>{userData.name}</Text>
-                <Text style={styles.userEmail}>{userData.email}</Text>
+                <Text style={styles.userName}>{user?.profile?.name || 'User'}</Text>
+                <Text style={styles.userEmail}>{user?.email || 'email@example.com'}</Text>
                 <View style={styles.locationContainer}>
                   <MapPin size={12} color={theme.colors.primary} />
-                  <Text style={styles.userLocation}>{userData.location}</Text>
+                  <Text style={styles.userLocation}>{user?.profile?.location?.address || 'Location not set'}</Text>
                 </View>
               </View>
             </View>
@@ -245,10 +330,9 @@ export default function ProfileScreen() {
             {/* Stats Cards */}
             <View style={styles.statsContainer}>
               {[
-                { num: userData.savedDeals, label: 'Deals' },
-                { num: rideHistory.length, label: 'Rides' },
-                { num: `₹${userData.totalSavings}`, label: 'Saved' },
-                { num: favoriteMerchants.length, label: 'Favs' }
+                { num: claimedDeals.length, label: 'Claimed' },
+                { num: favoritedDeals.length, label: 'Favorites' },
+                { num: loyaltyProfile?.points || user?.loyaltyPoints || 0, label: 'Points' }
               ].map((stat, i) => (
                 <View key={i} style={styles.statCard}>
                   <Text style={styles.statNumber}>{stat.num}</Text>
@@ -259,88 +343,9 @@ export default function ProfileScreen() {
           </View>
         </FadeInView>
 
-        {/* Ride History */}
-        <FadeInView delay={100}>
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ride History</Text>
-              <TouchableOpacity hitSlop={10}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rideHistoryScroll}>
-              {rideHistory.length > 0 ? (
-                rideHistory.slice(-5).reverse().map(ride => (
-                  <ScaleButton key={ride.id} style={{ marginRight: 12 }}>
-                    <View style={styles.rideCard}>
-                      <View style={styles.rideHeader}>
-                        <View style={styles.rideIconBg}>
-                          <Text style={{ fontSize: 20 }}>{ride.type === 'auto' ? '🛺' : ride.type === 'bus' ? '🚌' : '🚗'}</Text>
-                        </View>
-                        <View style={styles.rideInfo}>
-                          <Text style={styles.rideProvider}>{ride.providerName}</Text>
-                          <Text style={styles.rideStatus}>{ride.status}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.rideDetails}>
-                        <View style={styles.rideLocation}>
-                          <View style={styles.dot} />
-                          <Text style={styles.rideAddress} numberOfLines={1}>{ride.pickup.address}</Text>
-                        </View>
-                        <View style={styles.rideLine} />
-                        <View style={styles.rideLocation}>
-                          <MapPin size={10} color={theme.colors.primary} />
-                          <Text style={styles.rideAddress} numberOfLines={1}>{ride.destination.address}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.rideFooter}>
-                        <Text style={styles.ridePrice}>₹{ride.price}</Text>
-                        <Text style={styles.rideDate}>{new Date(ride.bookedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-                      </View>
-                    </View>
-                  </ScaleButton>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Car size={28} color={theme.colors.textTertiary} />
-                  <Text style={styles.emptyText}>No rides yet</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </FadeInView>
-
-        {/* Favorite Merchants */}
-        <FadeInView delay={200}>
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Favorite Merchants</Text>
-              <TouchableOpacity hitSlop={10}>
-                <Text style={styles.seeAllText}>Manage</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.merchantsList}>
-              {favoriteMerchants.map((merchant, index) => (
-                <View key={index} style={styles.merchantCard}>
-                  <View style={styles.merchantIcon}>
-                    <Text style={styles.merchantEmoji}>🏪</Text>
-                  </View>
-                  <Text style={styles.merchantName} numberOfLines={1}>{merchant}</Text>
-                  <TouchableOpacity
-                    onPress={() => toggleFavoriteMerchant(merchant)}
-                    style={styles.favoriteButton}
-                    hitSlop={10}
-                  >
-                    <Heart size={18} color={theme.colors.error} fill={theme.colors.error} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          </View>
-        </FadeInView>
 
         {/* Recent Activity */}
-        <FadeInView delay={300}>
+        <FadeInView delay={200}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -352,20 +357,115 @@ export default function ProfileScreen() {
               {recentActivity.map(activity => (
                 <ActivityItem key={activity.id} activity={activity} />
               ))}
+              {recentActivity.length === 0 && (
+                <Text style={{ textAlign: 'center', color: theme.colors.textSecondary }}>No recent activity</Text>
+              )}
             </View>
           </View>
         </FadeInView>
 
+        {/* Claimed Deals Section */}
+        <FadeInView delay={250}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Claimed Deals</Text>
+              <Text style={styles.seeAllText}>{claimedDeals.length} total</Text>
+            </View>
+            {loadingClaimed ? (
+              <Text style={{ textAlign: 'center', color: theme.colors.textSecondary, paddingVertical: 20 }}>Loading...</Text>
+            ) : claimedDeals.length > 0 ? (
+              <View style={styles.dealsGrid}>
+                {claimedDeals.slice(0, 4).map((claim: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.claimedDealCard}
+                    onPress={() => router.push(`/deal/${claim.deal._id}` as any)}
+                  >
+                    <View style={styles.dealCardContent}>
+                      <Text style={styles.dealCardTitle} numberOfLines={2}>{claim.deal.title}</Text>
+                      <Text style={styles.dealCardMerchant} numberOfLines={1}>{claim.deal.merchantId?.name}</Text>
+                      <View style={styles.dealCardFooter}>
+                        <Text style={styles.dealCardSavings}>Saved ₹{claim.savings}</Text>
+                        <View style={[styles.dealCardStatus, claim.status === 'redeemed' ? styles.statusRedeemed : styles.statusPending]}>
+                          <Text style={styles.dealCardStatusText}>{claim.status === 'redeemed' ? 'Redeemed' : 'Pending'}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Gift size={48} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyStateText}>No claimed deals yet</Text>
+                <Text style={styles.emptyStateSubtext}>Start claiming deals to see them here</Text>
+              </View>
+            )}
+            {claimedDeals.length > 0 && (
+              <View style={styles.savingsSummary}>
+                <Text style={styles.savingsSummaryLabel}>Total Savings</Text>
+                <Text style={styles.savingsSummaryValue}>
+                  ₹{claimedDeals.reduce((sum: number, claim: any) => sum + (claim.savings || 0), 0).toFixed(2)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </FadeInView>
+
+        {/* Favorite Deals Section */}
+        <FadeInView delay={275}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Favorite Deals</Text>
+              <Text style={styles.seeAllText}>{favoritedDeals.length} saved</Text>
+            </View>
+            {loadingFavorites ? (
+              <Text style={{ textAlign: 'center', color: theme.colors.textSecondary, paddingVertical: 20 }}>Loading...</Text>
+            ) : favoritedDeals.length > 0 ? (
+              <View style={styles.dealsGrid}>
+                {favoritedDeals.slice(0, 4).map((deal: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.favoriteDealCard}
+                    onPress={() => router.push(`/deal/${deal._id}` as any)}
+                  >
+                    <View style={styles.favoriteCardContent}>
+                      <View style={styles.favoriteCardHeader}>
+                        <View style={styles.discountBadgeSmall}>
+                          <Text style={styles.discountBadgeText}>{deal.discountPercentage}% OFF</Text>
+                        </View>
+                        <Heart size={16} color={theme.colors.primary} fill={theme.colors.primary} />
+                      </View>
+                      <Text style={styles.dealCardTitle} numberOfLines={2}>{deal.title}</Text>
+                      <Text style={styles.dealCardMerchant} numberOfLines={1}>{deal.merchantId?.name}</Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>₹{deal.discountedPrice}</Text>
+                        <Text style={styles.originalPriceSmall}>₹{deal.originalPrice}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Heart size={48} color={theme.colors.textTertiary} />
+                <Text style={styles.emptyStateText}>No favorite deals yet</Text>
+                <Text style={styles.emptyStateSubtext}>Tap the heart icon on deals to save them</Text>
+              </View>
+            )}
+          </View>
+        </FadeInView>
+
         {/* Menu Sections */}
-        <FadeInView delay={400}>
+        <FadeInView delay={300}>
           {menuSections.map((section, index) => (
             <MenuSection key={index} title={section.title} items={section.items} />
           ))}
         </FadeInView>
 
         {/* Sign Out */}
-        <FadeInView delay={500}>
-          <ScaleButton onPress={() => { }}>
+        <FadeInView delay={400}>
+          <ScaleButton onPress={handleLogout} style={undefined}>
             <View style={styles.signOutButton}>
               <Text style={styles.signOutText}>Sign Out</Text>
             </View>
@@ -377,7 +477,8 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
+  // ... (keep styles exactly as they were)
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -631,7 +732,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: theme.colors.surfaceLight,
   },
   merchantIcon: {
     width: 44,
@@ -766,6 +867,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
   },
+  menuItemRight: {
+    marginLeft: 12,
+  },
 
   // Sign Out
   signOutButton: {
@@ -782,5 +886,135 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: theme.colors.error,
+  },
+
+  // Deals Grid
+  dealsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+  claimedDealCard: {
+    width: '48%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+  },
+  favoriteDealCard: {
+    width: '48%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+  },
+  dealCardContent: {
+    gap: 8,
+  },
+  favoriteCardContent: {
+    gap: 8,
+  },
+  favoriteCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  discountBadgeSmall: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  discountBadgeText: {
+    color: theme.colors.background,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  dealCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  dealCardMerchant: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  dealCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  dealCardSavings: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.success,
+  },
+  dealCardStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusPending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+  },
+  statusRedeemed: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  dealCardStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  currentPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  originalPriceSmall: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 12,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+  },
+  savingsSummary: {
+    marginTop: 16,
+    marginHorizontal: 24,
+    padding: 16,
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  savingsSummaryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  savingsSummaryValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.primary,
   },
 });

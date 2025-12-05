@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loyaltyService } from '@/services/api';
+import { useLoyaltyStore } from './loyaltyStore';
+
 
 export type MissionDifficulty = 'easy' | 'medium' | 'hard';
 export type MissionCategory = 'food' | 'entertainment' | 'wellness' | 'shopping' | 'adventure';
@@ -43,7 +46,7 @@ interface MissionState {
   completedMissions: Mission[];
   totalPoints: number;
   badges: string[];
-  
+
   // Actions
   initializeMissions: () => void;
   startMission: (missionId: string) => void;
@@ -321,10 +324,34 @@ export const useMissionStore = create<MissionState>()(
       totalPoints: 0,
       badges: [],
 
-      initializeMissions: () => {
-        const existingMissions = get().missions;
-        if (existingMissions.length === 0) {
-          set({ missions: sampleMissions });
+      initializeMissions: async () => {
+        try {
+          const response = await loyaltyService.getMissions();
+          if (response.data) {
+            // Map backend _id to frontend id
+            const mappedMissions = response.data.map((m: any) => ({
+              ...m,
+              id: m._id,
+              progress: m.progress || 0,
+              completed: m.completed || false,
+              steps: m.steps || [],
+              reward: m.rewardPoints || m.reward || 0
+            }));
+            set({ missions: mappedMissions });
+          } else {
+            // Fallback if API fails or returns empty
+            const existingMissions = get().missions;
+            if (existingMissions.length === 0) {
+              set({ missions: sampleMissions });
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch missions', error);
+          // Fallback
+          const existingMissions = get().missions;
+          if (existingMissions.length === 0) {
+            set({ missions: sampleMissions });
+          }
         }
       },
 
@@ -369,7 +396,7 @@ export const useMissionStore = create<MissionState>()(
         if (!mission) return;
 
         const allStepsCompleted = mission.steps.every((step) => step.completed);
-        
+
         if (allStepsCompleted && !mission.completed) {
           set((state) => {
             const missions = state.missions.map((m) =>
@@ -394,35 +421,33 @@ export const useMissionStore = create<MissionState>()(
           totalPoints: state.totalPoints + mission.reward,
           badges: [...state.badges, `${mission.category}-${mission.difficulty}`],
         }));
-        
+
         // Bonus: Award stamps for mission completion (if any steps involved merchants)
-        // This creates a synergy between missions and loyalty
         try {
-          const { useLoyaltyStore } = require('./loyaltyStore');
           const earnStamp = useLoyaltyStore.getState().earnStamp;
-          
+
           // Find merchant-related steps in the mission
           const merchantSteps = mission.steps.filter(
             step => step.type === 'deal' || step.type === 'scan' || step.type === 'visit'
           );
-          
+
           // Award bonus stamp if mission had merchant interactions
           if (merchantSteps.length > 0) {
             console.log('🎁 Mission completion bonus: Awarding loyalty stamp!');
+            // earnStamp(merchantSteps[0].merchantId, undefined, 'Mission Bonus');
           }
         } catch (error) {
-          // Loyalty store might not be available yet
-          console.log('Loyalty store not yet initialized');
+          console.log('Loyalty store interaction failed', error);
         }
       },
 
       getRecommendedMissions: (userPreferences = {}) => {
         const { missions } = get();
         const currentHour = new Date().getHours();
-        
+
         // Time-based filtering
         let recommended = [...missions];
-        
+
         // Evening missions (6 PM - 11 PM)
         if (currentHour >= 18 && currentHour <= 23) {
           recommended = recommended.sort((a, b) => {
@@ -432,7 +457,7 @@ export const useMissionStore = create<MissionState>()(
             return bScore - aScore;
           });
         }
-        
+
         // Morning missions (6 AM - 12 PM)
         if (currentHour >= 6 && currentHour <= 12) {
           recommended = recommended.sort((a, b) => {
@@ -442,10 +467,10 @@ export const useMissionStore = create<MissionState>()(
             return bScore - aScore;
           });
         }
-        
+
         // Filter out completed missions
         recommended = recommended.filter((m) => !m.completed);
-        
+
         return recommended;
       },
 

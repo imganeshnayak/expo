@@ -18,7 +18,7 @@ import {
   Search,
   Filter,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   Clock,
   Heart,
   AlertCircle,
@@ -133,7 +133,7 @@ export default function CRMScreen() {
 
       <View style={styles.statCard}>
         <View style={[styles.statIcon, { backgroundColor: '#2ECC7120' }]}>
-          <DollarSign size={20} color="#2ECC71" />
+          <IndianRupee size={20} color="#2ECC71" />
         </View>
         <Text style={styles.statValue}>₹{(avgLTV / 1000).toFixed(1)}K</Text>
         <Text style={styles.statLabel}>Avg LTV</Text>
@@ -265,7 +265,7 @@ export default function CRMScreen() {
         {/* Metrics */}
         <View style={styles.customerMetrics}>
           <View style={styles.metricItem}>
-            <DollarSign size={14} color={theme.colors.primary} />
+            <IndianRupee size={14} color={theme.colors.primary} />
             <Text style={styles.metricValue}>{formatCurrency(customer.lifetimeValue)}</Text>
             <Text style={styles.metricLabel}>LTV</Text>
           </View>

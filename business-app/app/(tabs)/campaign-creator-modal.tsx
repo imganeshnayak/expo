@@ -8,15 +8,20 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
+    Image,
+    ActivityIndicator,
 } from 'react-native';
-import { X, Rocket, TrendingUp, Users, RefreshCw } from 'lucide-react-native';
+import { X, Rocket, TrendingUp, Users, RefreshCw, Image as ImageIcon, Upload } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../constants/theme';
+import { api } from '../../lib/api';
 import {
     useCampaignStore,
     type CampaignType,
     type AudienceType,
     getCategoryColor,
 } from '../../store/campaignStore';
+import { BUSINESS_CATEGORIES } from '../../constants/categories';
 
 interface CampaignCreatorModalProps {
     visible: boolean;
@@ -41,6 +46,14 @@ export default function CampaignCreatorModal({
     const [discountPercent, setDiscountPercent] = useState('15');
     const [rideReimbursement, setRideReimbursement] = useState('100');
 
+    // New Fields
+    const [description, setDescription] = useState('');
+    const [consumerCategory, setConsumerCategory] = useState('Food');
+    const [maxRedemptions, setMaxRedemptions] = useState('100');
+    const [originalPrice, setOriginalPrice] = useState('0');
+    const [images, setImages] = useState<string[]>([]);
+    const [uploading, setUploading] = useState(false);
+
     const handleTemplateSelect = (templateId: string) => {
         setSelectedTemplate(templateId);
         startCampaignFromTemplate(templateId, merchantId);
@@ -52,8 +65,45 @@ export default function CampaignCreatorModal({
             setBudget(template.defaultConfig.budget?.total?.toString() || '5000');
             setDiscountPercent(template.defaultConfig.offer?.discountPercent?.toString() || '15');
             setRideReimbursement(template.defaultConfig.offer?.rideReimbursement?.toString() || '100');
+
+            // New Fields
+            setDescription(template.description || '');
+            setConsumerCategory('Food'); // Default or map from template category
+            setMaxRedemptions(template.defaultConfig.targeting?.maxUses?.toString() || '100');
+            setOriginalPrice('0');
+            setImages([]);
         }
         setStep(2);
+    };
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
+
+        if (!result.canceled) {
+            handleImageUpload(result.assets[0].uri);
+        }
+    };
+
+    const handleImageUpload = async (uri: string) => {
+        setUploading(true);
+        try {
+            const imageUrl = await api.uploadImage(uri);
+            setImages(prev => [...prev, imageUrl]);
+        } catch (error) {
+            Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+            console.error(error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const removeImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleLaunch = () => {
@@ -80,6 +130,16 @@ export default function CampaignCreatorModal({
                 rideReimbursement: campaignType === 'ride_reimbursement' || campaignType === 'combo'
                     ? parseInt(rideReimbursement) : undefined,
             },
+            // Frontend Deal Fields
+            description,
+            consumerCategory,
+            maxRedemptions: parseInt(maxRedemptions) || 100,
+            pricing: {
+                originalPrice: parseInt(originalPrice) || 0,
+                discountedPrice: parseInt(originalPrice) * (1 - (parseInt(discountPercent) || 0) / 100),
+            },
+            images: ['https://via.placeholder.com/300'], // Placeholder for now
+            termsAndConditions: ['Valid at all locations'], // Default
         });
 
         launchCampaign();
@@ -97,6 +157,16 @@ export default function CampaignCreatorModal({
                 discountPercent: parseInt(discountPercent),
                 rideReimbursement: parseInt(rideReimbursement),
             },
+            // Frontend Deal Fields
+            description,
+            consumerCategory,
+            maxRedemptions: parseInt(maxRedemptions) || 100,
+            pricing: {
+                originalPrice: parseInt(originalPrice) || 0,
+                discountedPrice: parseInt(originalPrice) * (1 - (parseInt(discountPercent) || 0) / 100),
+            },
+            images: ['https://via.placeholder.com/300'],
+            termsAndConditions: ['Valid at all locations'],
         });
         saveDraft();
         Alert.alert('Success', 'Campaign saved as draft');
@@ -190,6 +260,69 @@ export default function CampaignCreatorModal({
                             </View>
 
                             <View style={styles.formSection}>
+                                <Text style={styles.label}>Description</Text>
+                                <TextInput
+                                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    placeholder="Describe your offer..."
+                                    placeholderTextColor={theme.colors.textTertiary}
+                                    multiline
+                                />
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.label}>Campaign Images</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
+                                    {images.map((img, index) => (
+                                        <View key={index} style={styles.imageContainer}>
+                                            <Image source={{ uri: img }} style={styles.uploadedImage} />
+                                            <TouchableOpacity
+                                                style={styles.removeImageButton}
+                                                onPress={() => removeImage(index)}
+                                            >
+                                                <X size={12} color="#FFF" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                    <TouchableOpacity
+                                        style={styles.addImageButton}
+                                        onPress={pickImage}
+                                        disabled={uploading}
+                                    >
+                                        {uploading ? (
+                                            <ActivityIndicator color={theme.colors.primary} />
+                                        ) : (
+                                            <>
+                                                <Upload size={24} color={theme.colors.primary} />
+                                                <Text style={styles.addImageText}>Upload</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </ScrollView>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.label}>Category</Text>
+                                <View style={styles.optionsRow}>
+                                    {BUSINESS_CATEGORIES.map(cat => (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            style={[styles.optionChip, consumerCategory === cat && styles.optionChipActive]}
+                                            onPress={() => setConsumerCategory(cat)}>
+                                            <Text
+                                                style={[
+                                                    styles.optionChipText,
+                                                    consumerCategory === cat && styles.optionChipTextActive,
+                                                ]}>
+                                                {cat}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
                                 <Text style={styles.label}>Target Audience</Text>
                                 <View style={styles.optionsRow}>
                                     {(['all', 'new', 'returning', 'high_value', 'at_risk'] as AudienceType[]).map(
@@ -223,17 +356,42 @@ export default function CampaignCreatorModal({
                                 />
                             </View>
 
+                            <View style={styles.formSection}>
+                                <Text style={styles.label}>Max Redemptions</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={maxRedemptions}
+                                    onChangeText={setMaxRedemptions}
+                                    keyboardType="numeric"
+                                    placeholder="100"
+                                    placeholderTextColor={theme.colors.textTertiary}
+                                />
+                            </View>
+
                             {(campaignType === 'discount' || campaignType === 'combo') && (
-                                <View style={styles.formSection}>
-                                    <Text style={styles.label}>Discount Percentage (%)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={discountPercent}
-                                        onChangeText={setDiscountPercent}
-                                        keyboardType="numeric"
-                                        placeholder="15"
-                                        placeholderTextColor={theme.colors.textTertiary}
-                                    />
+                                <View style={styles.row}>
+                                    <View style={[styles.formSection, { flex: 1, marginRight: 10 }]}>
+                                        <Text style={styles.label}>Original Price (₹)</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={originalPrice}
+                                            onChangeText={setOriginalPrice}
+                                            keyboardType="numeric"
+                                            placeholder="500"
+                                            placeholderTextColor={theme.colors.textTertiary}
+                                        />
+                                    </View>
+                                    <View style={[styles.formSection, { flex: 1 }]}>
+                                        <Text style={styles.label}>Discount (%)</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={discountPercent}
+                                            onChangeText={setDiscountPercent}
+                                            keyboardType="numeric"
+                                            placeholder="15"
+                                            placeholderTextColor={theme.colors.textTertiary}
+                                        />
+                                    </View>
                                 </View>
                             )}
 
@@ -450,5 +608,57 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#FFFFFF',
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    // Image Upload Styles
+    imageScroll: {
+        flexDirection: 'row',
+        marginBottom: 8,
+    },
+    imageContainer: {
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        marginRight: 10,
+        position: 'relative',
+    },
+    uploadedImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: -5,
+        right: -5,
+        backgroundColor: theme.colors.error || '#EF4444',
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#FFF',
+    },
+    addImageButton: {
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        backgroundColor: theme.colors.surface,
+        borderWidth: 1,
+        borderColor: theme.colors.surfaceLight,
+        borderStyle: 'dashed',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    addImageText: {
+        fontSize: 12,
+        color: theme.colors.primary,
+        fontWeight: '500',
     },
 });

@@ -88,6 +88,10 @@ export const loginMerchant = async (req: Request, res: Response) => {
 
         const merchant = merchantUser.merchantId as any;
 
+        if (!merchant) {
+            return res.status(500).json({ message: 'Merchant data not found. Please contact support.' });
+        }
+
         res.json({
             success: true,
             token,
@@ -171,6 +175,7 @@ export const updateMerchantProfile = async (req: Request, res: Response) => {
                 if (req.body.businessType) merchant.category = [req.body.businessType];
                 if (req.body.businessHours) merchant.businessHours = req.body.businessHours;
                 if (req.body.paymentMethods) merchant.paymentMethods = req.body.paymentMethods;
+                if (req.body.logo) merchant.logo = req.body.logo;
 
                 await merchant.save();
             }

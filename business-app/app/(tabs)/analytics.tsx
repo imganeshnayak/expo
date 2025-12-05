@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Users, DollarSign, ShoppingBag, TrendingUp } from 'lucide-react-native';
+import { Users, IndianRupee, ShoppingBag, TrendingUp } from 'lucide-react-native';
 import { useBusinessAnalyticsStore, formatCurrency } from '../../store/businessAnalyticsStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../hooks/useAppTheme';
@@ -94,7 +94,7 @@ export default function BusinessAnalyticsScreen() {
         {/* Key Metrics - Simplified to 3 main ones */}
         <View style={styles(theme).metricsGrid}>
           <MetricCard
-            icon={DollarSign}
+            icon={IndianRupee}
             label="Total Sales"
             value={analytics?.overview ? formatCurrency(analytics.overview.totalRevenue) : '₹0'}
             color={theme.colors.success}
@@ -115,6 +115,28 @@ export default function BusinessAnalyticsScreen() {
             theme={theme}
           />
         </View>
+
+        {/* Deal Claims - Show campaign performance */}
+        {analytics?.campaignPerformance?.activeCampaigns?.length > 0 && (
+          <View style={styles(theme).section}>
+            <Text style={styles(theme).sectionTitle}>Deal Performance</Text>
+            <View style={styles(theme).card}>
+              {analytics.campaignPerformance.activeCampaigns.map((campaign) => (
+                <View key={campaign.id} style={styles(theme).dealItem}>
+                  <View style={styles(theme).dealInfo}>
+                    <Text style={styles(theme).dealName}>{campaign.name}</Text>
+                    <Text style={styles(theme).dealStats}>
+                      {campaign.customers} claims • {campaign.conversions} redeemed
+                    </Text>
+                  </View>
+                  <View style={styles(theme).dealMetrics}>
+                    <Text style={styles(theme).dealRevenue}>{formatCurrency(campaign.revenue)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Top Products - Simplified List */}
         <View style={styles(theme).section}>
@@ -168,13 +190,11 @@ const styles = (theme: any) => StyleSheet.create({
   },
   metricsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
     marginBottom: 24,
+    gap: 12,
   },
   metricCard: {
-    width: (width - 52) / 3, // 3 cards per row approx, or adjust for 2
-    minWidth: '30%',
     flex: 1,
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
@@ -184,15 +204,15 @@ const styles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.surfaceLight,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   metricValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 4,
@@ -265,6 +285,38 @@ const styles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: theme.colors.text,
+    fontFamily: theme.fontFamily.primary,
+  },
+  dealItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.surfaceLight,
+  },
+  dealInfo: {
+    flex: 1,
+  },
+  dealName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+    fontFamily: theme.fontFamily.heading,
+  },
+  dealStats: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.fontFamily.primary,
+  },
+  dealMetrics: {
+    alignItems: 'flex-end',
+  },
+  dealRevenue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.success,
     fontFamily: theme.fontFamily.primary,
   },
 });

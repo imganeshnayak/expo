@@ -16,7 +16,7 @@ import {
   Plus,
   TrendingUp,
   Users,
-  DollarSign,
+  IndianRupee,
   Target,
   Zap,
   Pause,
@@ -111,7 +111,7 @@ export default function CampaignsScreen() {
 
       <View style={styles.statCard}>
         <View style={[styles.statIcon, { backgroundColor: '#2ECC7120' }]}>
-          <DollarSign size={24} color="#2ECC71" />
+          <IndianRupee size={24} color="#2ECC71" />
         </View>
         <Text style={styles.statValue}>{formatBudget(totalRevenue)}</Text>
         <Text style={styles.statLabel}>Total Revenue</Text>

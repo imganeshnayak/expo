@@ -167,5 +167,5 @@ export const lightColors = {
 // Default export for backward compatibility (Deprecated)
 export const theme = {
   ...commonTheme,
-  colors: darkColors,
+  colors: lightColors,
 };

@@ -24,13 +24,18 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
+import { useAppTheme } from '@/store/themeStore';
 import { useMissionStore, Mission, MissionStep } from '@/store/missionStore';
+import { useUserStore } from '@/store/userStore';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
 
 export default function MissionsScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
+  const styles = getStyles(theme);
+  const { gamification } = useUserStore();
   const {
     missions,
     activeMissions,
@@ -73,7 +78,7 @@ export default function MissionsScreen() {
   const handleClaimReward = (mission: Mission) => {
     claimReward(mission.id);
     setShowCelebration(true);
-    
+
     Animated.sequence([
       Animated.spring(celebrationAnim, {
         toValue: 1,
@@ -111,7 +116,7 @@ export default function MissionsScreen() {
       <TouchableOpacity
         style={[
           styles.missionCard,
-          isActive && styles.missionCardActive,
+          !!isActive && styles.missionCardActive,
           isCompleted && styles.missionCardCompleted,
         ]}
         activeOpacity={0.9}
@@ -371,11 +376,32 @@ export default function MissionsScreen() {
 
       {/* Celebration Overlay */}
       {showCelebration && <CelebrationOverlay />}
+
+      {/* Locked Feature Overlay */}
+      {gamification?.rank.league === 'Bronze' && (
+        <View style={styles.lockedOverlay}>
+          <View style={styles.lockedContent}>
+            <View style={styles.lockedIconContainer}>
+              <Trophy size={40} color={theme.colors.textSecondary} />
+            </View>
+            <Text style={styles.lockedTitle}>Missions Locked</Text>
+            <Text style={styles.lockedText}>
+              Reach <Text style={{ color: '#BDC3C7', fontWeight: '700' }}>Silver I</Text> to unlock daily missions and earn rewards.
+            </Text>
+            <View style={styles.lockedProgress}>
+              <Text style={styles.lockedProgressText}>Current Rank: {gamification.rank.name}</Text>
+              <View style={styles.lockedProgressBar}>
+                <View style={[styles.lockedProgressBarFill, { width: '40%' }]} />
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -719,5 +745,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     marginTop: 8,
+  },
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  lockedContent: {
+    width: '85%',
+    backgroundColor: theme.colors.surface,
+    padding: 24,
+    borderRadius: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+  },
+  lockedIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  lockedTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  lockedText: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  lockedProgress: {
+    width: '100%',
+    gap: 8,
+  },
+  lockedProgressText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  lockedProgressBar: {
+    height: 8,
+    backgroundColor: theme.colors.surfaceLight,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  lockedProgressBarFill: {
+    height: '100%',
+    backgroundColor: theme.colors.textSecondary,
+    borderRadius: 4,
   },
 });

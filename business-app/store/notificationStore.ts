@@ -98,7 +98,7 @@ const generateHardcodedNotifications = (): Notification[] => {
             type: 'alert',
             priority: 'high',
             title: 'Low Campaign Budget',
-            message: '"Loyalty Rewards" campaign has only $50 remaining in budget',
+            message: '"Loyalty Rewards" campaign has only ₹50 remaining in budget',
             timestamp: twoDaysAgo,
             read: true,
             metadata: { campaignId: 'camp_3', amount: 50 },

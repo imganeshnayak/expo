@@ -14,11 +14,26 @@ export const getCampaigns = async (req: Request, res: Response) => {
         if (status && status !== 'all') query.status = status;
         if (type) query.type = type;
 
-        const campaigns = await Campaign.find(query).sort({ createdAt: -1 });
+        const campaigns = await Campaign.find(query)
+            .sort({ createdAt: -1 })
+            .populate('merchantId', 'name logo');
+
+        const mappedCampaigns = campaigns.map((c: any) => ({
+            ...c.toObject(),
+            // Map Backend fields to Frontend Deal interface
+            category: c.consumerCategory || c.category, // Use consumer category if available
+            originalPrice: c.pricing?.originalPrice || 0,
+            discountedPrice: c.pricing?.discountedPrice || 0,
+            validFrom: c.targeting?.schedule?.startDate,
+            validUntil: c.targeting?.schedule?.endDate,
+            discountPercentage: c.offer?.discountPercent,
+            currentRedemptions: c.performance?.conversions || 0,
+            isActive: c.status === 'active',
+        }));
 
         res.json({
             success: true,
-            campaigns,
+            campaigns: mappedCampaigns,
         });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -34,15 +49,29 @@ export const getCampaignById = async (req: Request, res: Response) => {
         const campaign = await Campaign.findOne({
             _id: req.params.id,
             merchantId,
-        });
+        }).populate('merchantId', 'name logo');
 
         if (!campaign) {
             return res.status(404).json({ message: 'Campaign not found' });
         }
 
+        const c: any = campaign;
+        const mappedCampaign = {
+            ...c.toObject(),
+            // Map Backend fields to Frontend Deal interface
+            category: c.consumerCategory || c.category,
+            originalPrice: c.pricing?.originalPrice || 0,
+            discountedPrice: c.pricing?.discountedPrice || 0,
+            validFrom: c.targeting?.schedule?.startDate,
+            validUntil: c.targeting?.schedule?.endDate,
+            discountPercentage: c.offer?.discountPercent,
+            currentRedemptions: c.performance?.conversions || 0,
+            isActive: c.status === 'active',
+        };
+
         res.json({
             success: true,
-            campaign,
+            campaign: mappedCampaign,
         });
     } catch (error: any) {
         res.status(500).json({ message: error.message });

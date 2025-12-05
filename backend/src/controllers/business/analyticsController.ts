@@ -130,6 +130,7 @@ export const getCampaignAnalytics = async (req: Request, res: Response) => {
         const totalSpent = campaigns.reduce((sum, c) => sum + c.budget.spent, 0);
         const totalRevenue = campaigns.reduce((sum, c) => sum + c.performance.revenue, 0);
         const totalConversions = campaigns.reduce((sum, c) => sum + c.performance.conversions, 0);
+        const totalClaims = campaigns.reduce((sum, c) => sum + (c.performance.claims || 0), 0);
 
         const avgROI = totalSpent > 0 ? ((totalRevenue - totalSpent) / totalSpent) * 100 : 0;
 
@@ -143,6 +144,7 @@ export const getCampaignAnalytics = async (req: Request, res: Response) => {
                 totalSpent,
                 totalRevenue,
                 totalConversions,
+                totalClaims,
                 avgROI,
                 topCampaigns: campaigns
                     .sort((a, b) => b.performance.revenue - a.performance.revenue)
@@ -152,6 +154,7 @@ export const getCampaignAnalytics = async (req: Request, res: Response) => {
                         name: c.name,
                         revenue: c.performance.revenue,
                         conversions: c.performance.conversions,
+                        claims: c.performance.claims || 0,
                         roi: c.performance.roi,
                     })),
             },

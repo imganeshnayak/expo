@@ -31,11 +31,23 @@ export interface ICampaign extends Document {
     performance: {
         impressions: number;
         conversions: number;
+        claims?: number;
         revenue: number;
         roi: number;
         costPerAcquisition: number;
         clickThroughRate: number;
     };
+    // Frontend Deal Interface Fields
+    title: string;
+    description: string;
+    consumerCategory: string;
+    images: string[];
+    termsAndConditions: string[];
+    pricing: {
+        originalPrice: number;
+        discountedPrice: number;
+    };
+    maxRedemptions?: number;
 }
 
 const CampaignSchema: Schema = new Schema(
@@ -112,6 +124,10 @@ const CampaignSchema: Schema = new Schema(
                 type: Number,
                 default: 0,
             },
+            claims: {
+                type: Number,
+                default: 0,
+            },
             revenue: {
                 type: Number,
                 default: 0,
@@ -129,6 +145,17 @@ const CampaignSchema: Schema = new Schema(
                 default: 0,
             },
         },
+        // Frontend Deal Interface Fields
+        title: String,
+        description: String,
+        consumerCategory: String,
+        images: [String],
+        termsAndConditions: [String],
+        pricing: {
+            originalPrice: Number,
+            discountedPrice: Number,
+        },
+        maxRedemptions: Number,
     },
     {
         timestamps: true,

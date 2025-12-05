@@ -16,7 +16,7 @@ import {
   Minus,
   Zap,
   Target,
-  DollarSign,
+
   Award,
   Crown,
   Medal,

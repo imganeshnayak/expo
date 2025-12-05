@@ -6,24 +6,40 @@ import {
   TouchableOpacity,
   Share,
   Alert,
+  ScrollView,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
-import { Camera, Share2, Download, Sparkles } from 'lucide-react-native';
+import { Camera, Share2, Download, Sparkles, ArrowLeft, ScanLine } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
+import { useAppTheme } from '@/store/themeStore';
+import { useAuth } from '../_layout';
 
-// Mock user data - replace with actual auth
+// Mock user data (fallback)
 const mockUser = {
   userId: 'user_12345',
-  name: 'Sarah Johnson',
-  email: 'sarah.johnson@email.com',
+  name: 'Guest User',
+  email: 'guest@example.com',
 };
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function QRCodeScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
+  const styles = getStyles(theme);
+  const { user } = useAuth();
+
+  const userData = user ? {
+    userId: user._id,
+    name: user.profile.name,
+    email: user.email,
+  } : mockUser;
+
   const [qrData] = useState({
-    userId: mockUser.userId,
+    userId: userData.userId,
     timestamp: Date.now(),
     type: 'user',
   });
@@ -33,34 +49,32 @@ export default function QRCodeScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Scan my UMA QR code to connect! User: ${mockUser.name}`,
+        message: `Scan my UMA QR code to connect! User: ${userData.name}`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
     }
   };
 
-  const handleScanMerchant = () => {
-    router.push('/scanner');
-  };
-
   const handleDownload = () => {
-    Alert.alert('Download QR', 'QR code saved to gallery', [{ text: 'OK' }]);
+    Alert.alert('Success', 'QR code saved to gallery', [{ text: 'OK' }]);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>My QR Code</Text>
-          <Text style={styles.subtitle}>
-            Share this code to claim rewards and connect with merchants
-          </Text>
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+          <ArrowLeft size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Code</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-        {/* QR Code Container */}
-        <View style={styles.qrContainer}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* Main QR Card */}
+        <View style={styles.mainCard}>
           <View style={styles.qrWrapper}>
             {/* Decorative corners */}
             <View style={[styles.corner, styles.topLeft]} />
@@ -68,249 +82,214 @@ export default function QRCodeScreen() {
             <View style={[styles.corner, styles.bottomLeft]} />
             <View style={[styles.corner, styles.bottomRight]} />
 
-            {/* QR Code */}
-            <View style={styles.qrCodeWrapper}>
+            <View style={styles.qrCodeSurface}>
               <QRCode
                 value={qrDataString}
-                size={220}
-                color={theme.colors.text}
-                backgroundColor={theme.colors.surface}
-                logo={require('@/assets/images/icon.png')}
-                logoSize={40}
-                logoBackgroundColor={theme.colors.surface}
-                logoBorderRadius={10}
+                size={200}
+                color="#000000"
+                backgroundColor="#FFFFFF"
+                quietZone={10}
               />
             </View>
 
-            {/* User Info */}
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{mockUser.name}</Text>
-              <Text style={styles.userEmail}>{mockUser.email}</Text>
+              <Text style={styles.userName}>{userData.name}</Text>
+              <Text style={styles.userEmail}>{userData.email}</Text>
             </View>
           </View>
 
-          {/* Scan Message */}
-          <View style={styles.messageContainer}>
-            <Sparkles size={16} color={theme.colors.primary} />
-            <Text style={styles.messageText}>Scan to claim rewards</Text>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleShare}
-            activeOpacity={0.7}>
-            <View style={styles.iconButtonInner}>
+          {/* Quick Actions Row */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
               <Share2 size={20} color={theme.colors.text} />
-            </View>
-            <Text style={styles.iconButtonLabel}>Share</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleDownload}
-            activeOpacity={0.7}>
-            <View style={styles.iconButtonInner}>
+              <Text style={styles.actionLabel}>Share</Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
               <Download size={20} color={theme.colors.text} />
-            </View>
-            <Text style={styles.iconButtonLabel}>Download</Text>
-          </TouchableOpacity>
+              <Text style={styles.actionLabel}>Save</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Primary Action */}
+        {/* Scan Button */}
         <TouchableOpacity
           style={styles.scanButton}
-          onPress={handleScanMerchant}
-          activeOpacity={0.9}>
-          <Camera size={22} color={theme.colors.background} strokeWidth={2} />
-          <Text style={styles.scanButtonText}>Scan Merchant QR</Text>
+          onPress={() => router.push('/scanner')}
+          activeOpacity={0.9}
+        >
+          <View style={styles.scanIconBox}>
+            <ScanLine size={24} color="#FFF" />
+          </View>
+          <View style={styles.scanContent}>
+            <Text style={styles.scanTitle}>Scan Merchant</Text>
+            <Text style={styles.scanSubtitle}>Earn points & pay</Text>
+          </View>
+          <Sparkles size={16} color={theme.colors.background} style={{ opacity: 0.5 }} />
         </TouchableOpacity>
 
-        {/* Info Cards */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>How it works</Text>
-            <Text style={styles.infoText}>
-              • Show this QR code to merchants to claim rewards{'\n'}
-              • Scan merchant QR codes to unlock exclusive deals{'\n'}
-              • Earn points with every transaction
-            </Text>
-          </View>
+        {/* Instructions */}
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            Show this code to merchants to claim rewards, or scan their code to unlock exclusive deals.
+          </Text>
         </View>
-      </View>
+
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   header: {
-    paddingTop: 20,
-    paddingBottom: 24,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '300',
-    color: theme.colors.text,
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  qrContainer: {
+  backBtn: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
     alignItems: 'center',
-    marginBottom: 32,
   },
-  qrWrapper: {
+
+  // Main Card
+  mainCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 24,
-    padding: 24,
+    padding: 20,
+    width: '100%',
     alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  qrWrapper: {
+    padding: 24,
     position: 'relative',
+    alignItems: 'center',
+    width: '100%',
   },
   corner: {
     position: 'absolute',
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     borderColor: theme.colors.primary,
-    borderWidth: 3,
+    borderWidth: 4,
+    borderRadius: 2,
   },
-  topLeft: {
-    top: 12,
-    left: 12,
-    borderBottomWidth: 0,
-    borderRightWidth: 0,
-    borderTopLeftRadius: 8,
-  },
-  topRight: {
-    top: 12,
-    right: 12,
-    borderBottomWidth: 0,
-    borderLeftWidth: 0,
-    borderTopRightRadius: 8,
-  },
-  bottomLeft: {
-    bottom: 12,
-    left: 12,
-    borderTopWidth: 0,
-    borderRightWidth: 0,
-    borderBottomLeftRadius: 8,
-  },
-  bottomRight: {
-    bottom: 12,
-    right: 12,
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderBottomRightRadius: 8,
-  },
-  qrCodeWrapper: {
-    padding: 16,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    marginBottom: 20,
+  topLeft: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0 },
+  topRight: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0 },
+  bottomLeft: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
+  bottomRight: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0 },
+
+  qrCodeSurface: {
+    backgroundColor: '#FFF',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
   userInfo: {
     alignItems: 'center',
+    gap: 4,
   },
   userName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 4,
-    letterSpacing: -0.3,
   },
   userEmail: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    backgroundColor: 'rgba(0, 217, 163, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-  },
-  messageText: {
     fontSize: 14,
-    color: theme.colors.primary,
-    fontWeight: '500',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 32,
-    marginBottom: 24,
-  },
-  iconButton: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconButtonInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconButtonLabel: {
-    fontSize: 13,
     color: theme.colors.textSecondary,
-    fontWeight: '500',
   },
+
+  // Action Row
+  actionRow: {
+    flexDirection: 'row',
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.background,
+    marginTop: 8,
+    paddingTop: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  divider: {
+    width: 1,
+    height: '100%',
+    backgroundColor: theme.colors.background,
+  },
+
+  // Scan Button
   scanButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: theme.colors.primary,
     borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    gap: 12,
-    marginBottom: 24,
+    padding: 12,
+    width: '100%',
+    marginBottom: 20,
   },
-  scanButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.background,
-    letterSpacing: -0.2,
-  },
-  infoSection: {
-    gap: 12,
-  },
-  infoCard: {
-    backgroundColor: theme.colors.surface,
+  scanIconBox: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 12,
-    letterSpacing: -0.2,
+  scanContent: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  scanTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.background, // Assuming dark text on primary
+  },
+  scanSubtitle: {
+    fontSize: 12,
+    color: theme.colors.background,
+    opacity: 0.8,
+  },
+
+  // Info
+  infoBox: {
+    paddingHorizontal: 10,
   },
   infoText: {
-    fontSize: 13,
+    textAlign: 'center',
+    fontSize: 12,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

@@ -9,20 +9,23 @@ import {
     Platform,
     ScrollView,
     Keyboard,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    Alert
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Phone } from 'lucide-react-native';
 import { theme } from '../../constants/theme';
 import { useAuth } from '../_layout';
+import { authService } from '@/services/api';
 
 export default function RegisterScreen() {
     const router = useRouter();
     const { login } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -33,14 +36,42 @@ export default function RegisterScreen() {
     const [isFocused, setIsFocused] = useState('');
 
     const handleRegister = async () => {
+        if (!name || !email || !phone || !password || !confirmPassword) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            Alert.alert('Error', 'Passwords do not match');
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert('Error', 'Password must be at least 6 characters');
+            return;
+        }
+
         Keyboard.dismiss();
         setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+
+        try {
+            const response = await authService.register({ name, email, phone, password });
+
+            if (response.error) {
+                Alert.alert('Registration Failed', response.error);
+                setIsLoading(false);
+                return;
+            }
+
+            if (response.data) {
+                login();
+                router.replace('/(tabs)');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        } finally {
             setIsLoading(false);
-            login(); // Set authentication state
-            router.replace('/(tabs)');
-        }, 1500);
+        }
     };
 
     return (
@@ -48,7 +79,7 @@ export default function RegisterScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
 
             {/* Dismiss keyboard when tapping outside */}
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -110,6 +141,26 @@ export default function RegisterScreen() {
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 onFocus={() => setIsFocused('email')}
+                                onBlur={() => setIsFocused('')}
+                            />
+                        </View>
+
+                        {/* Phone Input */}
+                        <View style={[
+                            styles.inputContainer,
+                            isFocused === 'phone' && styles.inputFocused
+                        ]}>
+                            <View style={styles.iconContainer}>
+                                <Phone color={isFocused === 'phone' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                            </View>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Phone Number"
+                                placeholderTextColor={theme.colors.textTertiary}
+                                value={phone}
+                                onChangeText={setPhone}
+                                keyboardType="phone-pad"
+                                onFocus={() => setIsFocused('phone')}
                                 onBlur={() => setIsFocused('')}
                             />
                         </View>

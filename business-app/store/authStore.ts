@@ -20,6 +20,7 @@ interface MerchantUser {
         weekends: string;
     };
     paymentMethods?: string[];
+    logo?: string;
 }
 
 interface RegisterData {

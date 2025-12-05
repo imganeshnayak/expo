@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import { theme } from "@/constants/theme";
 
 export default function SplashScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -87,7 +88,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 72,
     fontWeight: "200",
-    color: "#FFFFFF",
+    color: theme.colors.text,
     letterSpacing: -2,
   },
   dot: {
@@ -111,12 +112,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#00D9A3",
+    backgroundColor: theme.colors.primary,
   },
   brandName: {
     fontSize: 18,
     fontWeight: "300",
-    color: "#FFFFFF",
+    color: theme.colors.text,
     letterSpacing: 8,
     opacity: 0.9,
   },

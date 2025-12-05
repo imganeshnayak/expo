@@ -66,6 +66,7 @@ export default function ProfileScreen() {
       title: 'Business',
       items: [
         { icon: Store, label: 'Business Information', action: () => setIsEditModalVisible(true), badge: null },
+        { icon: CreditCard, label: 'Redeem Deal', action: () => router.push('/qr-scanner' as any), badge: null },
       ],
     },
     {

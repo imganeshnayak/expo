@@ -14,8 +14,25 @@ export const generateMessageId = () => {
   return `UMA-MSG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// ONDC Context Interface
+interface OndcContext {
+  domain: string;
+  country: string;
+  city: string;
+  action: string;
+  core_version: string;
+  bap_id: string;
+  bap_uri: string;
+  transaction_id: string;
+  message_id: string;
+  timestamp: string;
+  ttl: string;
+  bpp_id?: string;
+  bpp_uri?: string;
+}
+
 // Create ONDC Context (required for all requests)
-const createOndcContext = (action: string, transactionId?: string) => {
+const createOndcContext = (action: string, transactionId?: string): OndcContext => {
   return {
     domain: ONDC_CONFIG.domain,
     country: ONDC_CONFIG.countryCode,
@@ -34,7 +51,7 @@ const createOndcContext = (action: string, transactionId?: string) => {
 // API Client
 class ONDCApiClient {
   private baseUrl: string;
-  
+
   constructor() {
     this.baseUrl = ONDC_CONFIG.gatewayUrl;
   }
@@ -48,7 +65,7 @@ class ONDCApiClient {
     rideType?: 'auto' | 'car' | 'bus';
   }) {
     const context = createOndcContext('search');
-    
+
     const payload = {
       context,
       message: {
@@ -387,11 +404,11 @@ class ONDCApiClient {
       return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
-      
+
       if (error.name === 'AbortError') {
         throw new Error(ONDC_ERROR_CODES.TIMEOUT);
       }
-      
+
       throw error;
     }
   }
@@ -444,7 +461,7 @@ export const parseSearchResponse = (ondcResponse: any) => {
     if (!catalog) return [];
 
     const providers = catalog['bpp/providers'] || [];
-    
+
     return providers.flatMap((provider: any) => {
       return (provider.items || []).map((item: any) => {
         const fulfillment = provider.fulfillments?.find(

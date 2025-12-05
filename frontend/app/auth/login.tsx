@@ -10,7 +10,8 @@ import {
     ScrollView,
     Dimensions,
     Keyboard,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    Alert
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, Apple } from 'lucide-react-native';
 import { theme } from '../../constants/theme';
 import { useAuth } from '../_layout';
+import { authService } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -28,17 +30,35 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isFocused, setIsFocused] = useState(''); // To highlight active input
+    const [isFocused, setIsFocused] = useState('');
 
     const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter email and password');
+            return;
+        }
+
         Keyboard.dismiss();
         setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+
+        try {
+            const response = await authService.login({ email, password });
+
+            if (response.error) {
+                Alert.alert('Login Failed', response.error);
+                setIsLoading(false);
+                return;
+            }
+
+            if (response.data) {
+                login();
+                router.replace('/(tabs)');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        } finally {
             setIsLoading(false);
-            login(); // Set authentication state
-            router.replace('/(tabs)');
-        }, 1500);
+        }
     };
 
     return (
@@ -46,9 +66,8 @@ export default function LoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
 
-            {/* Dismiss keyboard when tapping outside */}
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
@@ -153,7 +172,6 @@ export default function LoginScreen() {
                                 <Chrome color={theme.colors.text} size={22} />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.socialButton}>
-                                {/* Assuming you might want an Apple icon here for the second empty button */}
                                 <View style={{ width: 22, height: 22, backgroundColor: theme.colors.text, borderRadius: 4 }} />
                             </TouchableOpacity>
                         </View>
@@ -183,8 +201,8 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         padding: theme.spacing.xl,
-        paddingTop: theme.spacing.xxxl, // Extra top padding for visual balance
-        paddingBottom: 40, // Bottom padding for scrolling space
+        paddingTop: theme.spacing.xxxl,
+        paddingBottom: 40,
     },
     decorationCircle: {
         position: 'absolute',
@@ -218,12 +236,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.colors.surface,
-        borderRadius: 16, // More rounded
-        height: 60, // Slightly taller for modern look
+        borderRadius: 16,
+        height: 60,
         borderWidth: 1.5,
         borderColor: theme.colors.surfaceLight,
         paddingHorizontal: 16,
-        // Shadow for sleekness
         shadowColor: theme.colors.shadow || '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -232,7 +249,7 @@ const styles = StyleSheet.create({
     },
     inputFocused: {
         borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.surface, // Ensure it stays solid
+        backgroundColor: theme.colors.surface,
     },
     iconContainer: {
         marginRight: 12,

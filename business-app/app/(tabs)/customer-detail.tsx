@@ -16,7 +16,7 @@ import {
   Mail,
   MapPin,
   Calendar,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Clock,
   Heart,
@@ -184,7 +184,7 @@ export default function CustomerDetailScreen() {
   const renderKeyMetrics = () => (
     <View style={styles.metricsGrid}>
       <View style={styles.metricCard}>
-        <DollarSign size={20} color={theme.colors.primary} />
+        <IndianRupee size={20} color={theme.colors.primary} />
         <Text style={styles.metricValue}>{formatCurrency(customer.lifetimeValue)}</Text>
         <Text style={styles.metricLabel}>Lifetime Value</Text>
       </View>
@@ -196,7 +196,7 @@ export default function CustomerDetailScreen() {
       </View>
 
       <View style={styles.metricCard}>
-        <DollarSign size={20} color="#F39C12" />
+        <IndianRupee size={20} color="#F39C12" />
         <Text style={styles.metricValue}>{formatCurrency(customer.averageSpend)}</Text>
         <Text style={styles.metricLabel}>Avg Spend</Text>
       </View>
@@ -433,7 +433,7 @@ export default function CustomerDetailScreen() {
         </View>
 
         <View style={styles.historyRow}>
-          <DollarSign size={16} color="#2ECC71" />
+          <IndianRupee size={16} color="#2ECC71" />
           <Text style={styles.historyLabel}>Avg Spend per Visit:</Text>
           <Text style={styles.historyValue}>{formatCurrency(customer.averageSpend)}</Text>
         </View>

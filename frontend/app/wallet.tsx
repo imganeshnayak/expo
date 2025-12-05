@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,82 +19,49 @@ import {
   Calendar,
 } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
-
-const transactions = [
-  {
-    id: '1',
-    type: 'earned',
-    title: 'Deal Claimed',
-    business: "Mario's Pizza Palace",
-    amount: 12.5,
-    date: '2024-11-12',
-    time: '14:30',
-    status: 'completed',
-  },
-  {
-    id: '2',
-    type: 'earned',
-    title: 'Loyalty Reward',
-    business: 'Urban Brew Cafe',
-    amount: 5.0,
-    date: '2024-11-10',
-    time: '09:15',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    type: 'spent',
-    title: 'Redeemed Deal',
-    business: 'Serenity Wellness Spa',
-    amount: 20.0,
-    date: '2024-11-08',
-    time: '16:45',
-    status: 'completed',
-  },
-  {
-    id: '4',
-    type: 'earned',
-    title: 'Welcome Bonus',
-    business: 'UMA Platform',
-    amount: 10.0,
-    date: '2024-11-05',
-    time: '10:00',
-    status: 'completed',
-  },
-  {
-    id: '5',
-    type: 'earned',
-    title: 'Referral Bonus',
-    business: 'UMA Platform',
-    amount: 15.0,
-    date: '2024-11-03',
-    time: '11:20',
-    status: 'completed',
-  },
-  {
-    id: '6',
-    type: 'spent',
-    title: 'Premium Deal',
-    business: 'TechZone Store',
-    amount: 25.0,
-    date: '2024-11-01',
-    time: '13:50',
-    status: 'completed',
-  },
-];
-
-const stats = {
-  totalEarned: 42.5,
-  totalSpent: 45.0,
-  netBalance: -2.5,
-  transactionCount: transactions.length,
-};
+import { walletService, Wallet, WalletTransaction } from '@/services/api';
 
 export default function WalletScreen() {
   const router = useRouter();
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const TransactionItem = ({ transaction }: { transaction: typeof transactions[0] }) => {
-    const isEarned = transaction.type === 'earned';
+  const loadWallet = async () => {
+    try {
+      setLoading(true);
+      const response = await walletService.getWallet();
+      if (response.data) {
+        setWallet(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load wallet', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWallet();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadWallet();
+  };
+
+  const transactions = wallet?.transactions || [];
+
+  const stats = {
+    totalEarned: transactions.filter(t => t.type === 'WALLET_TOPUP' || t.type === 'REWARD').reduce((acc, t) => acc + t.amount, 0),
+    totalSpent: transactions.filter(t => t.type === 'WITHDRAWAL' || t.type === 'RIDE_PAYMENT' || t.type === 'DEAL_PURCHASE').reduce((acc, t) => acc + t.amount, 0),
+    netBalance: wallet?.balance || 0,
+    transactionCount: transactions.length,
+  };
+
+  const TransactionItem = ({ transaction }: { transaction: WalletTransaction }) => {
+    const isEarned = transaction.type === 'WALLET_TOPUP' || transaction.type === 'REWARD';
     const Icon = isEarned ? Gift : ShoppingBag;
     const amountColor = isEarned ? theme.colors.success : theme.colors.textSecondary;
     const amountPrefix = isEarned ? '+' : '-';
@@ -103,18 +71,18 @@ export default function WalletScreen() {
         <View style={[styles.transactionIcon, { backgroundColor: isEarned ? 'rgba(0, 217, 163, 0.15)' : 'rgba(102, 102, 102, 0.15)' }]}>
           <Icon size={20} color={isEarned ? theme.colors.primary : theme.colors.textSecondary} />
         </View>
-        
+
         <View style={styles.transactionDetails}>
-          <Text style={styles.transactionTitle}>{transaction.title}</Text>
-          <Text style={styles.transactionBusiness}>{transaction.business}</Text>
+          <Text style={styles.transactionTitle}>{transaction.description}</Text>
+          <Text style={styles.transactionBusiness}>{transaction.type}</Text>
           <Text style={styles.transactionDate}>
-            {new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {transaction.time}
+            {new Date(transaction.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </Text>
         </View>
-        
+
         <View style={styles.transactionRight}>
           <Text style={[styles.transactionAmount, { color: amountColor }]}>
-            {amountPrefix}${transaction.amount.toFixed(2)}
+            {amountPrefix}₹{transaction.amount.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -138,7 +106,7 @@ export default function WalletScreen() {
 
   // Group transactions by date
   const groupedTransactions = transactions.reduce((groups: any, transaction) => {
-    const date = formatDate(transaction.date);
+    const date = formatDate(transaction.createdAt);
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -148,7 +116,10 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -158,7 +129,7 @@ export default function WalletScreen() {
             <ArrowLeft size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Wallet</Text>
-          <TouchableOpacity style={styles.refreshButton}>
+          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
             <RefreshCw size={20} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
@@ -170,15 +141,15 @@ export default function WalletScreen() {
               <TrendingUp size={18} color={theme.colors.success} />
               <Text style={styles.statLabel}>Total Earned</Text>
             </View>
-            <Text style={styles.statValue}>${stats.totalEarned.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₹{stats.totalEarned.toFixed(2)}</Text>
           </View>
-          
+
           <View style={styles.statCard}>
             <View style={styles.statHeader}>
               <TrendingDown size={18} color={theme.colors.textSecondary} />
               <Text style={styles.statLabel}>Total Spent</Text>
             </View>
-            <Text style={styles.statValue}>${stats.totalSpent.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₹{stats.totalSpent.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -187,7 +158,7 @@ export default function WalletScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Net Balance</Text>
             <Text style={[styles.summaryValue, { color: stats.netBalance >= 0 ? theme.colors.success : theme.colors.error }]}>
-              {stats.netBalance >= 0 ? '+' : ''}${Math.abs(stats.netBalance).toFixed(2)}
+              {stats.netBalance >= 0 ? '+' : ''}₹{Math.abs(stats.netBalance).toFixed(2)}
             </Text>
           </View>
           <View style={styles.summaryDivider} />
@@ -208,10 +179,14 @@ export default function WalletScreen() {
             <View key={date} style={styles.dateGroup}>
               <Text style={styles.dateHeader}>{date}</Text>
               {txns.map((transaction: any) => (
-                <TransactionItem key={transaction.id} transaction={transaction} />
+                <TransactionItem key={transaction.transactionId} transaction={transaction} />
               ))}
             </View>
           ))}
+
+          {transactions.length === 0 && !loading && (
+            <Text style={{ textAlign: 'center', color: theme.colors.textSecondary, marginTop: 20 }}>No transactions yet</Text>
+          )}
         </View>
 
         <View style={{ height: 40 }} />

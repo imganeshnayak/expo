@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ArrowLeft, TrendingUp, Award, Target, Star, Zap, Gift,
-  Calendar, Trophy, ChevronRight, Sparkles, DollarSign, Percent
+  Calendar, Trophy, ChevronRight, Sparkles, IndianRupee, Percent
 } from 'lucide-react-native';
 import { useCouponEngineStore } from '../store/couponEngineStore';
 
@@ -79,7 +79,7 @@ export default function SavingsDashboardScreen() {
               <View style={styles.monthlyDivider} />
               <View style={styles.monthlyItem}>
                 <View style={styles.monthlyIconWrapper}>
-                  <DollarSign size={20} color="#10b981" />
+                  <IndianRupee size={20} color="#10b981" />
                 </View>
                 <Text style={styles.monthlyValue}>₹{stats.averageSavingsPerOrder}</Text>
                 <Text style={styles.monthlyLabel}>Avg per Order</Text>
@@ -154,7 +154,7 @@ export default function SavingsDashboardScreen() {
               {unlockedCount}/{totalCount} Unlocked
             </Text>
           </View>
-          
+
           {achievements.map((achievement, index) => (
             <View key={achievement.id} style={styles.achievementCard}>
               <View style={styles.achievementLeft}>
@@ -202,7 +202,7 @@ export default function SavingsDashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => {/* View all */}}>
+            <TouchableOpacity onPress={() => {/* View all */ }}>
               <Text style={styles.viewAllButton}>View All</Text>
             </TouchableOpacity>
           </View>

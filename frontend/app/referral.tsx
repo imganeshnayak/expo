@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   Gift,
   Users,
-  DollarSign,
+
   Share2,
   Copy,
   Check,
@@ -74,7 +74,7 @@ export default function ReferralScreen() {
   const handleShare = async () => {
     try {
       const message = `🎉 Join UMA and get ₹150 bonus!\n\nI'm using UMA to save money on rides, food, and shopping. Use my code "${myReferralCode}" when you sign up and we both get rewards!\n\n${referralLink}`;
-      
+
       await Share.share({
         message,
         title: 'Join UMA - Get ₹150 Bonus',
@@ -111,7 +111,7 @@ export default function ReferralScreen() {
 
   const renderReferralCard = (referral: Referral) => {
     const statusBadge = getStatusBadge(referral.status);
-    
+
     return (
       <View
         key={referral.id}
@@ -125,8 +125,8 @@ export default function ReferralScreen() {
             referral.status === 'completed'
               ? theme.colors.success
               : referral.status === 'joined'
-              ? '#3b82f6'
-              : '#d1d5db',
+                ? '#3b82f6'
+                : '#d1d5db',
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -168,7 +168,7 @@ export default function ReferralScreen() {
               </Text>
             </View>
           )}
-          
+
           {referral.status === 'joined' && (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -185,7 +185,7 @@ export default function ReferralScreen() {
               </View>
             </>
           )}
-          
+
           {referral.status === 'completed' && (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -225,7 +225,7 @@ export default function ReferralScreen() {
               </Text>
             </Text>
           </View>
-          
+
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
               Friend's Reward

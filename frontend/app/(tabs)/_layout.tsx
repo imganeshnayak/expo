@@ -10,6 +10,7 @@ import {
   LucideIcon
 } from 'lucide-react-native';
 import { theme } from '@/constants/theme';
+import { useAppTheme } from '@/store/themeStore';
 
 interface TabIconProps {
   icon: LucideIcon;
@@ -43,7 +44,7 @@ const AnimatedTabIcon = ({ icon: Icon, focused, size, color }: TabIconProps) => 
 };
 
 // Simple active dot indicator
-const ActiveDot = ({ focused }: { focused: boolean }) => {
+const ActiveDot = ({ focused, theme }: { focused: boolean, theme: any }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -58,7 +59,14 @@ const ActiveDot = ({ focused }: { focused: boolean }) => {
   return (
     <Animated.View
       style={[
-        styles.activeDot,
+        {
+          position: 'absolute',
+          bottom: -6,
+          width: 4,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: theme.colors.primary,
+        },
         {
           transform: [{ scale: scaleAnim }],
           opacity: scaleAnim,
@@ -69,6 +77,8 @@ const ActiveDot = ({ focused }: { focused: boolean }) => {
 };
 
 export default function TabLayout() {
+  const theme = useAppTheme();
+  const styles = getStyles(theme);
   return (
     <Tabs
       screenOptions={{
@@ -101,7 +111,7 @@ export default function TabLayout() {
                 size={size}
                 color={color}
               />
-              <ActiveDot focused={focused} />
+              <ActiveDot focused={focused} theme={theme} />
             </View>
           ),
         }}
@@ -118,7 +128,7 @@ export default function TabLayout() {
                 size={size}
                 color={color}
               />
-              <ActiveDot focused={focused} />
+              <ActiveDot focused={focused} theme={theme} />
             </View>
           ),
         }}
@@ -135,7 +145,7 @@ export default function TabLayout() {
                 size={size}
                 color={color}
               />
-              <ActiveDot focused={focused} />
+              <ActiveDot focused={focused} theme={theme} />
             </View>
           ),
         }}
@@ -152,7 +162,7 @@ export default function TabLayout() {
                 size={size}
                 color={color}
               />
-              <ActiveDot focused={focused} />
+              <ActiveDot focused={focused} theme={theme} />
             </View>
           ),
         }}
@@ -169,7 +179,7 @@ export default function TabLayout() {
                 size={size}
                 color={color}
               />
-              <ActiveDot focused={focused} />
+              <ActiveDot focused={focused} theme={theme} />
             </View>
           ),
         }}
@@ -185,18 +195,10 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  activeDot: {
-    position: 'absolute',
-    bottom: -6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.primary,
   },
 });

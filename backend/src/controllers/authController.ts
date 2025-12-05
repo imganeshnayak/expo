@@ -36,6 +36,10 @@ export const registerUser = async (req: Request, res: Response) => {
         });
 
         if (user) {
+            // Queue Signup XP
+            const { queueXP } = require('../services/GamificationService');
+            await queueXP(user._id.toString(), 50, 'SIGNUP', 'Welcome Bonus');
+
             res.status(201).json({
                 _id: user._id,
                 name: user.profile.name,

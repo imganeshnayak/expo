@@ -48,7 +48,7 @@ export default function RegisterScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={[theme.colors.background, '#1A0F2E', theme.colors.background]}
+                colors={[theme.colors.background, theme.colors.surface, theme.colors.background]}
                 style={StyleSheet.absoluteFill}
             />
 
@@ -56,7 +56,7 @@ export default function RegisterScreen() {
             <View style={[styles.ambientLight, { top: -100, right: -100, backgroundColor: theme.colors.secondary }]} />
             <View style={[styles.ambientLight, { bottom: -100, left: -100, backgroundColor: theme.colors.primary }]} />
 
-            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="dark" />
+            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="light" />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

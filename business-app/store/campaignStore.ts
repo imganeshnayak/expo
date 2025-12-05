@@ -65,6 +65,17 @@ export interface Campaign {
   createdAt: number;
   updatedAt: number;
   merchantId: string;
+  // Frontend Deal Interface Fields
+  title?: string;
+  description?: string;
+  consumerCategory?: string;
+  images?: string[];
+  termsAndConditions?: string[];
+  pricing?: {
+    originalPrice: number;
+    discountedPrice: number;
+  };
+  maxRedemptions?: number;
 }
 
 export interface AIOptimization {
@@ -368,6 +379,17 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       },
       createdAt: now - 15 * dayMs,
       updatedAt: now,
+      // Frontend Deal Fields
+      title: '₹100 Stamp Card Campaign',
+      description: 'Collect stamps and get rewards!',
+      consumerCategory: 'Loyalty',
+      images: ['https://via.placeholder.com/300'],
+      termsAndConditions: ['One stamp per visit'],
+      pricing: {
+        originalPrice: 0,
+        discountedPrice: 0,
+      },
+      maxRedemptions: 1000,
     },
     {
       id: 'camp_002',
@@ -400,6 +422,17 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       },
       createdAt: now - 7 * dayMs,
       updatedAt: now,
+      // Frontend Deal Fields
+      title: 'Weekend Special - 20% Off',
+      description: 'Get 20% off this weekend!',
+      consumerCategory: 'Shopping',
+      images: ['https://via.placeholder.com/300'],
+      termsAndConditions: ['Valid Sat-Sun only'],
+      pricing: {
+        originalPrice: 100,
+        discountedPrice: 80,
+      },
+      maxRedemptions: 500,
     },
     {
       id: 'camp_003',
@@ -433,6 +466,17 @@ const generateSampleCampaigns = (merchantId: string): Campaign[] => {
       },
       createdAt: now - 20 * dayMs,
       updatedAt: now - 2 * dayMs,
+      // Frontend Deal Fields
+      title: 'First Visit Free Ride',
+      description: 'Get a free ride to our store for your first visit!',
+      consumerCategory: 'Travel',
+      images: ['https://via.placeholder.com/300'],
+      termsAndConditions: ['New customers only'],
+      pricing: {
+        originalPrice: 200,
+        discountedPrice: 0,
+      },
+      maxRedemptions: 500,
     },
   ];
 };
@@ -599,6 +643,17 @@ export const useCampaignStore = create<CampaignState>()(
             clickThroughRate: 0,
           },
           ...template.defaultConfig,
+          // Initialize Frontend Deal Fields
+          title: template.name,
+          description: template.description,
+          consumerCategory: 'Food', // Default
+          images: ['https://via.placeholder.com/300'],
+          termsAndConditions: ['Valid at all locations', 'Cannot be combined with other offers'],
+          pricing: {
+            originalPrice: 0,
+            discountedPrice: 0,
+          },
+          maxRedemptions: template.defaultConfig.targeting?.maxUses || 100,
         };
 
         set({ draftCampaign: newCampaign, currentStep: 1 });

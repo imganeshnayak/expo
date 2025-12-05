@@ -460,8 +460,9 @@ const generateAIRecommendations = (analytics: BusinessAnalytics): AIRecommendati
 // ============================================================================
 
 // Helper to map backend data to frontend structure
-const mapBackendToFrontend = (backendData: any): BusinessAnalytics => {
+const mapBackendToFrontend = (backendData: any, campaignData?: any): BusinessAnalytics => {
   const metrics = backendData.metrics || {};
+  const campaigns = campaignData || {};
 
   return {
     merchantId: backendData.merchantId,
@@ -507,9 +508,31 @@ const mapBackendToFrontend = (backendData: any): BusinessAnalytics => {
     },
 
     campaignPerformance: {
-      activeCampaigns: [],
-      roiByCampaign: [],
-      bestPerformingDeals: [],
+      activeCampaigns: (campaigns.topCampaigns || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        type: 'discount' as CampaignType,
+        spend: 0,
+        revenue: c.revenue || 0,
+        customers: c.claims || 0,
+        conversions: c.conversions || 0,
+        roi: c.roi || 0,
+        status: 'active' as CampaignStatus,
+        startDate: Date.now(),
+        impressions: 0,
+        clickThroughRate: 0,
+      })),
+      roiByCampaign: (campaigns.topCampaigns || []).map((c: any) => ({
+        campaignId: c.id,
+        name: c.name,
+        roi: c.roi || 0,
+      })),
+      bestPerformingDeals: (campaigns.topCampaigns || []).map((c: any) => ({
+        dealId: c.id,
+        name: c.name,
+        conversions: c.conversions || 0,
+        revenue: c.revenue || 0,
+      })),
     },
 
     competitiveIntelligence: {
@@ -536,12 +559,20 @@ export const useBusinessAnalyticsStore = create<AnalyticsState>()(
         set({ isLoading: true });
         try {
           const period = get().selectedPeriod;
-          const response = await api.get<{
-            success: boolean;
-            analytics: any; // Backend structure
-          }>(`/api/analytics/overview?period=${period}`);
 
-          const mappedAnalytics = mapBackendToFrontend(response.analytics);
+          // Fetch both overview and campaign analytics
+          const [overviewResponse, campaignResponse] = await Promise.all([
+            api.get<{
+              success: boolean;
+              analytics: any;
+            }>(`/api/analytics/overview?period=${period}`),
+            api.get<{
+              success: boolean;
+              campaigns: any;
+            }>('/api/analytics/campaigns'),
+          ]);
+
+          const mappedAnalytics = mapBackendToFrontend(overviewResponse.analytics, campaignResponse.campaigns);
 
           set({
             analytics: mappedAnalytics,
