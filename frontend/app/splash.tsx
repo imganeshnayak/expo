@@ -1,86 +1,101 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing, Platform } from "react-native";
 import { theme } from "@/constants/theme";
 
 export default function SplashScreen() {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.3)).current;
-  const dotAnim = useRef(new Animated.Value(0)).current;
+  // Animation Values
+  const scaleU = useRef(new Animated.Value(0)).current;
+  const shockwave = useRef(new Animated.Value(0)).current;
+  const slideText = useRef(new Animated.Value(0)).current;
+  const opacityText = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Smooth fade and scale animation
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+    Animated.sequence([
+      // Step 1: Dramatic Zoom in of "U"
+      Animated.timing(scaleU, {
         toValue: 1,
-        duration: 1200,
-        easing: Easing.out(Easing.cubic),
+        duration: 800,
+        easing: Easing.out(Easing.exp),
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 40,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
 
-    // Pulsing dot animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(dotAnim, {
+      // Step 2: Parallel Shockwave & Reveal
+      Animated.parallel([
+        Animated.timing(shockwave, {
           toValue: 1,
           duration: 1000,
-          easing: Easing.inOut(Easing.ease),
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(dotAnim, {
-          toValue: 0,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
+        Animated.timing(slideText, {
+          toValue: 1,
+          duration: 900,
+          // FIXED: Replaced 'quartic' with poly(4) for the same effect
+          easing: Easing.out(Easing.poly(4)),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityText, {
+          toValue: 1,
+          duration: 800,
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    ]).start();
   }, []);
 
   return (
     <View style={styles.container}>
+
+      {/* Background Shockwave */}
       <Animated.View
         style={[
-          styles.content,
+          styles.shockwave,
           {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [
+              { scale: shockwave.interpolate({ inputRange: [0, 1], outputRange: [0.5, 4] }) }
+            ],
+            opacity: shockwave.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.1, 0] }),
           },
         ]}
-      >
-        {/* Minimalist logo */}
-        <View style={styles.logoWrapper}>
-          <Text style={styles.logo}>U</Text>
-          <Animated.View
-            style={[
-              styles.dot,
-              {
-                opacity: dotAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.4, 1],
-                }),
-                transform: [
-                  {
-                    scale: dotAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.8, 1.1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        </View>
+      />
 
-        {/* Clean typography */}
-        <Text style={styles.brandName}>UMA</Text>
-      </Animated.View>
+      <View style={styles.logoContainer}>
+        {/* The Icon "U" */}
+        <Animated.Text
+          style={[
+            styles.proText,
+            styles.uChar,
+            {
+              transform: [
+                { scale: scaleU },
+                { scale: shockwave.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) }
+              ],
+            },
+          ]}
+        >
+          U
+        </Animated.Text>
+
+        {/* The Identity "topia" */}
+        <Animated.View
+          style={[
+            styles.textWrapper,
+            {
+              opacity: opacityText,
+              transform: [
+                {
+                  translateX: slideText.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={[styles.proText, styles.restOfWord]}>topia</Text>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -91,34 +106,43 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
+    overflow: 'hidden',
   },
-  content: {
-    alignItems: "center",
+  shockwave: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: theme.colors.primary,
+    zIndex: 0,
   },
-  logoWrapper: {
-    position: "relative",
-    marginBottom: 24,
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    zIndex: 1,
+    // Optical alignment to center the whole word better
+    marginLeft: 10,
   },
-  logo: {
-    fontSize: 72,
-    fontWeight: "200",
-    color: theme.colors.text,
+  // "Pro" Font Base Style
+  proText: {
+    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-condensed' }),
+    fontSize: 84,
+    // Using 900/800 weight for that Premium/Netflix blocky feel
+    fontWeight: Platform.select({ ios: '900', android: 'bold' }),
+    includeFontPadding: false,
+  },
+  uChar: {
+    color: theme.colors.primary,
+    zIndex: 10,
+    // Negative letter spacing is key for the "Pro" look
     letterSpacing: -2,
   },
-  dot: {
-    position: "absolute",
-    right: -8,
-    top: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.colors.primary,
+  textWrapper: {
+    zIndex: 0,
   },
-  brandName: {
-    fontSize: 18,
-    fontWeight: "300",
+  restOfWord: {
     color: theme.colors.text,
-    letterSpacing: 8,
-    opacity: 0.9,
+    letterSpacing: -3,
+    marginLeft: -1,
   },
 });

@@ -30,7 +30,6 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isFocused, setIsFocused] = useState('');
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -65,8 +64,9 @@ export default function LoginScreen() {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-            <StatusBar style="dark" />
+            <StatusBar style="light" />
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <ScrollView
@@ -82,17 +82,14 @@ export default function LoginScreen() {
                             style={styles.decorationCircle}
                         />
                         <Text style={styles.title}>Welcome Back</Text>
-                        <Text style={styles.subtitle}>Sign in to continue your journey</Text>
+                        <Text style={styles.subtitle}>Discover Deals, Save More</Text>
                     </View>
 
                     <View style={styles.form}>
                         {/* Email Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'email' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Mail color={isFocused === 'email' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Mail color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -102,18 +99,13 @@ export default function LoginScreen() {
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
-                                onFocus={() => setIsFocused('email')}
-                                onBlur={() => setIsFocused('')}
                             />
                         </View>
 
                         {/* Password Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'password' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Lock color={isFocused === 'password' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Lock color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -122,8 +114,6 @@ export default function LoginScreen() {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
-                                onFocus={() => setIsFocused('password')}
-                                onBlur={() => setIsFocused('')}
                             />
                             <TouchableOpacity
                                 onPress={() => setShowPassword(!showPassword)}
@@ -152,10 +142,10 @@ export default function LoginScreen() {
                                 end={{ x: 1, y: 0 }}
                                 style={styles.button}
                             >
-                                <Text style={styles.buttonText}>
+                                <Text style={[styles.buttonText, { color: theme.colors.background }]}>
                                     {isLoading ? 'Signing In...' : 'Sign In'}
                                 </Text>
-                                {!isLoading && <ArrowRight color="#FFF" size={20} strokeWidth={2.5} />}
+                                {!isLoading && <ArrowRight color={theme.colors.background} size={20} strokeWidth={2.5} />}
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -172,7 +162,7 @@ export default function LoginScreen() {
                                 <Chrome color={theme.colors.text} size={22} />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.socialButton}>
-                                <View style={{ width: 22, height: 22, backgroundColor: theme.colors.text, borderRadius: 4 }} />
+                                <Apple color={theme.colors.text} size={22} />
                             </TouchableOpacity>
                         </View>
 
@@ -211,7 +201,7 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         borderRadius: 100,
-        opacity: 0.1,
+        opacity: 0.15,
     },
     header: {
         marginBottom: 40,
@@ -236,20 +226,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.colors.surface,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.lg,
         height: 60,
-        borderWidth: 1.5,
-        borderColor: theme.colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
         paddingHorizontal: 16,
-        shadowColor: theme.colors.shadow || '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    inputFocused: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.surface,
     },
     iconContainer: {
         marginRight: 12,
@@ -278,7 +259,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         height: 60,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.lg,
         gap: 10,
         shadowColor: theme.colors.primary,
         shadowOffset: { width: 0, height: 4 },
@@ -287,7 +268,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     buttonText: {
-        color: '#FFF',
+        color: theme.colors.background,
         fontSize: 18,
         fontWeight: 'bold',
     },
@@ -302,7 +283,7 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: theme.colors.surfaceLight,
+        backgroundColor: theme.colors.divider,
     },
     dividerText: {
         color: theme.colors.textTertiary,
@@ -319,12 +300,12 @@ const styles = StyleSheet.create({
     socialButton: {
         width: 60,
         height: 60,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.lg,
         backgroundColor: theme.colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: theme.colors.surfaceLight,
+        borderColor: theme.colors.border,
     },
     signupContainer: {
         flexDirection: 'row',

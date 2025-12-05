@@ -15,7 +15,7 @@ import {
 import { Link, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Phone } from 'lucide-react-native';
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Phone, Check } from 'lucide-react-native';
 import { theme } from '../../constants/theme';
 import { useAuth } from '../_layout';
 import { authService } from '@/services/api';
@@ -31,9 +31,7 @@ export default function RegisterScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-
-    // State to track which input is currently active for styling
-    const [isFocused, setIsFocused] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     const handleRegister = async () => {
         if (!name || !email || !phone || !password || !confirmPassword) {
@@ -48,6 +46,11 @@ export default function RegisterScreen() {
 
         if (password.length < 6) {
             Alert.alert('Error', 'Password must be at least 6 characters');
+            return;
+        }
+
+        if (!termsAccepted) {
+            Alert.alert('Error', 'Please accept the Terms & Conditions and Privacy Policy');
             return;
         }
 
@@ -78,8 +81,9 @@ export default function RegisterScreen() {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-            <StatusBar style="dark" />
+            <StatusBar style="light" />
 
             {/* Dismiss keyboard when tapping outside */}
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -98,19 +102,16 @@ export default function RegisterScreen() {
                             style={styles.decorationCircle}
                         />
                         <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join the UMA community today</Text>
+                        <Text style={styles.subtitle}>Join Utopia and start saving</Text>
                     </View>
 
                     {/* Form Section */}
                     <View style={styles.form}>
 
                         {/* Name Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'name' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <User color={isFocused === 'name' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <User color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -119,18 +120,13 @@ export default function RegisterScreen() {
                                 value={name}
                                 onChangeText={setName}
                                 autoCapitalize="words"
-                                onFocus={() => setIsFocused('name')}
-                                onBlur={() => setIsFocused('')}
                             />
                         </View>
 
                         {/* Email Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'email' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Mail color={isFocused === 'email' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Mail color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -140,18 +136,13 @@ export default function RegisterScreen() {
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
-                                onFocus={() => setIsFocused('email')}
-                                onBlur={() => setIsFocused('')}
                             />
                         </View>
 
                         {/* Phone Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'phone' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Phone color={isFocused === 'phone' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Phone color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -160,18 +151,13 @@ export default function RegisterScreen() {
                                 value={phone}
                                 onChangeText={setPhone}
                                 keyboardType="phone-pad"
-                                onFocus={() => setIsFocused('phone')}
-                                onBlur={() => setIsFocused('')}
                             />
                         </View>
 
                         {/* Password Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'password' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Lock color={isFocused === 'password' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Lock color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -180,8 +166,6 @@ export default function RegisterScreen() {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
-                                onFocus={() => setIsFocused('password')}
-                                onBlur={() => setIsFocused('')}
                             />
                             <TouchableOpacity
                                 onPress={() => setShowPassword(!showPassword)}
@@ -196,12 +180,9 @@ export default function RegisterScreen() {
                         </View>
 
                         {/* Confirm Password Input */}
-                        <View style={[
-                            styles.inputContainer,
-                            isFocused === 'confirm' && styles.inputFocused
-                        ]}>
+                        <View style={styles.inputContainer}>
                             <View style={styles.iconContainer}>
-                                <Lock color={isFocused === 'confirm' ? theme.colors.primary : theme.colors.textSecondary} size={20} />
+                                <Lock color={theme.colors.textSecondary} size={20} />
                             </View>
                             <TextInput
                                 style={styles.input}
@@ -210,8 +191,6 @@ export default function RegisterScreen() {
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
                                 secureTextEntry={!showConfirmPassword}
-                                onFocus={() => setIsFocused('confirm')}
-                                onBlur={() => setIsFocused('')}
                             />
                             <TouchableOpacity
                                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -225,6 +204,20 @@ export default function RegisterScreen() {
                             </TouchableOpacity>
                         </View>
 
+                        {/* Terms and Conditions */}
+                        <TouchableOpacity
+                            style={styles.termsContainer}
+                            onPress={() => setTermsAccepted(!termsAccepted)}
+                            activeOpacity={0.8}
+                        >
+                            <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                                {termsAccepted && <Check color={theme.colors.background} size={14} strokeWidth={3} />}
+                            </View>
+                            <Text style={styles.termsText}>
+                                I agree to the <Text style={styles.linkText}>Terms & Conditions</Text> and <Text style={styles.linkText}>Privacy Policy</Text>
+                            </Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             onPress={handleRegister}
                             disabled={isLoading}
@@ -236,10 +229,10 @@ export default function RegisterScreen() {
                                 end={{ x: 1, y: 0 }}
                                 style={styles.button}
                             >
-                                <Text style={styles.buttonText}>
+                                <Text style={[styles.buttonText, { color: theme.colors.background }]}>
                                     {isLoading ? 'Creating Account...' : 'Sign Up'}
                                 </Text>
-                                {!isLoading && <ArrowRight color="#FFF" size={20} strokeWidth={2.5} />}
+                                {!isLoading && <ArrowRight color={theme.colors.background} size={20} strokeWidth={2.5} />}
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
@@ -267,7 +260,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         justifyContent: 'center',
         padding: theme.spacing.xl,
-        paddingTop: 60, // Extra padding for header
+        paddingTop: 60,
         paddingBottom: 40,
     },
     decorationCircle: {
@@ -277,7 +270,7 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         borderRadius: 100,
-        opacity: 0.1,
+        opacity: 0.15,
     },
     header: {
         marginBottom: 40,
@@ -302,21 +295,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: theme.colors.surface,
-        borderRadius: 16, // Modern pill shape
-        height: 60, // Taller click area
-        borderWidth: 1.5,
-        borderColor: theme.colors.surfaceLight,
+        borderRadius: theme.borderRadius.lg,
+        height: 60,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
         paddingHorizontal: 16,
-        // Subtle shadow
-        shadowColor: theme.colors.shadow || '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    inputFocused: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.surface,
     },
     iconContainer: {
         marginRight: 12,
@@ -331,12 +314,38 @@ const styles = StyleSheet.create({
     eyeIcon: {
         padding: 8,
     },
+    termsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+        paddingHorizontal: 4,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: theme.colors.textSecondary,
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
+    },
+    termsText: {
+        flex: 1,
+        color: theme.colors.textSecondary,
+        fontSize: 13,
+        lineHeight: 20,
+    },
     button: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         height: 60,
-        borderRadius: 16,
+        borderRadius: theme.borderRadius.lg,
         gap: 10,
         marginTop: 10,
         shadowColor: theme.colors.primary,
@@ -346,7 +355,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     buttonText: {
-        color: '#FFF',
+        color: theme.colors.background,
         fontSize: 18,
         fontWeight: 'bold',
     },
