@@ -208,12 +208,69 @@ async function generateAnalytics(merchantId: any, period: string) {
     // Get transactions
     const transactions = await Transaction.find({
         merchantId,
-        createdAt: { $gte: periodStart, $lte: periodEnd },
+        createdAt: { $gte: periodStart }, // Relaxed constraint for trend
         status: 'completed',
     });
 
-    const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const avgOrderValue = totalRevenue / (transactions.length || 1);
+    // Filter transactions for current period metrics
+    const periodTransactions = transactions.filter(t => t.createdAt >= periodStart && t.createdAt <= periodEnd || t.createdAt <= new Date());
+
+    const totalRevenue = periodTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const avgOrderValue = totalRevenue / (periodTransactions.length || 1);
+
+    // Calculate Trends (Daily Revenue)
+    const dailyRevenueMap: Record<string, number> = {};
+    transactions.forEach(t => {
+        const dateStr = t.createdAt.toISOString().split('T')[0];
+        // Only include if within reasonable range (e.g. last 7 days for week view)
+        if (t.createdAt >= periodStart) {
+            dailyRevenueMap[dateStr] = (dailyRevenueMap[dateStr] || 0) + t.amount;
+        }
+    });
+
+    const dailyRevenue = Object.entries(dailyRevenueMap).map(([date, value]) => ({
+        label: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+        value,
+        date
+    })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Calculate Peak Hours
+    const hoursMap: Record<number, number> = {};
+    periodTransactions.forEach(t => {
+        const hour = t.createdAt.getHours();
+        hoursMap[hour] = (hoursMap[hour] || 0) + 1;
+    });
+
+    const peakHours = Object.entries(hoursMap).map(([hour, count]) => ({
+        hour: `${hour}:00`,
+        traffic: count,
+        revenue: 0 // Placeholder
+    })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+    // Calculate Top Items
+    const itemsMap: Record<string, { revenue: number, count: number }> = {};
+    periodTransactions.forEach(t => {
+        if (t.items && t.items.length > 0) {
+            t.items.forEach((item: any) => {
+                const name = item.name || item.productId || 'Unknown Item';
+                const revenue = item.price || (t.amount / t.items!.length);
+                if (!itemsMap[name]) itemsMap[name] = { revenue: 0, count: 0 };
+                itemsMap[name].revenue += revenue;
+                itemsMap[name].count += 1;
+            });
+        } else {
+            const item = 'General Sale';
+            if (!itemsMap[item]) itemsMap[item] = { revenue: 0, count: 0 };
+            itemsMap[item].revenue += t.amount;
+            itemsMap[item].count += 1;
+        }
+    });
+
+    const topItems = Object.entries(itemsMap).map(([item, data]) => ({
+        item,
+        revenue: data.revenue,
+        orders: data.count
+    })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
     // Get campaigns
     const campaigns = await Campaign.find({ merchantId, status: 'active' });
@@ -241,9 +298,10 @@ async function generateAnalytics(merchantId: any, period: string) {
                 activeCampaigns: campaigns.length,
                 campaignRevenue,
                 campaignROI,
-                topItems: [],
-                peakHours: [],
+                topItems,
+                peakHours,
                 peakDays: [],
+                dailyRevenue
             },
         },
         { upsert: true, new: true }

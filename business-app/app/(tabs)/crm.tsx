@@ -10,9 +10,11 @@ import {
   RefreshControl,
   Linking,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Modal } from 'react-native';
 import {
   Users,
   Search,
@@ -41,6 +43,7 @@ import {
   formatCurrency,
   formatDate,
 } from '../../store/crmStore';
+import { notificationService } from '../../services/api/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -65,6 +68,12 @@ export default function CRMScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationAudience, setNotificationAudience] = useState<'all' | 'segment'>('all');
+  const [selectedNotificationSegments, setSelectedNotificationSegments] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
 
   const styles = getStyles(theme);
 
@@ -86,6 +95,40 @@ export default function CRMScreen() {
     await initializeCustomers('merchant_coffee_house_123');
     await refreshSegmentCounts();
     setRefreshing(false);
+  };
+
+  const handleSendNotification = async () => {
+    if (!notificationTitle.trim() || !notificationMessage.trim()) {
+      Alert.alert('Error', 'Please enter both title and message');
+      return;
+    }
+
+    setSending(true);
+    try {
+      await notificationService.sendNotification({
+        title: notificationTitle,
+        message: notificationMessage,
+        audience: notificationAudience,
+        targetSegments: notificationAudience === 'segment' ? selectedNotificationSegments : undefined,
+      });
+
+      // Reset form
+      setNotificationTitle('');
+      setNotificationMessage('');
+      setNotificationAudience('all');
+      setSelectedNotificationSegments([]);
+      setShowNotificationModal(false);
+
+      // Refresh communications list
+      await onRefresh();
+
+      Alert.alert('Success', 'Notification sent successfully!');
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      Alert.alert('Error', 'Failed to send notification. Please try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
   // Filter customers by search and segment
@@ -443,7 +486,9 @@ export default function CRMScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.createCommunicationButton}>
+        <TouchableOpacity
+          style={styles.createCommunicationButton}
+          onPress={() => setShowNotificationModal(true)}>
           <Send size={20} color="#FFFFFF" />
           <Text style={styles.createCommunicationText}>New Message</Text>
         </TouchableOpacity>
@@ -520,6 +565,134 @@ export default function CRMScreen() {
       {activeTab === 'customers' && renderCustomersTab()}
       {activeTab === 'segments' && renderSegmentsTab()}
       {activeTab === 'messages' && renderMessagesTab()}
+
+      {/* Notification Composer Modal */}
+      <Modal
+        visible={showNotificationModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowNotificationModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Send Notification</Text>
+              <TouchableOpacity onPress={() => setShowNotificationModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Title Input */}
+              <Text style={styles.inputLabel}>Title</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter notification title"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={notificationTitle}
+                onChangeText={setNotificationTitle}
+                maxLength={100}
+              />
+
+              {/* Message Input */}
+              <Text style={styles.inputLabel}>Message</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter notification message"
+                placeholderTextColor={theme.colors.textTertiary}
+                value={notificationMessage}
+                onChangeText={setNotificationMessage}
+                multiline
+                numberOfLines={4}
+                maxLength={500}
+              />
+
+              {/* Audience Selector */}
+              <Text style={styles.inputLabel}>Audience</Text>
+              <View style={styles.audienceSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.audienceOption,
+                    notificationAudience === 'all' && styles.audienceOptionActive,
+                  ]}
+                  onPress={() => setNotificationAudience('all')}>
+                  <Text
+                    style={[
+                      styles.audienceOptionText,
+                      notificationAudience === 'all' && styles.audienceOptionTextActive,
+                    ]}>
+                    All Users
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.audienceOption,
+                    notificationAudience === 'segment' && styles.audienceOptionActive,
+                  ]}
+                  onPress={() => setNotificationAudience('segment')}>
+                  <Text
+                    style={[
+                      styles.audienceOptionText,
+                      notificationAudience === 'segment' && styles.audienceOptionTextActive,
+                    ]}>
+                    By Segment
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Segment Selection */}
+              {notificationAudience === 'segment' && (
+                <View style={styles.segmentSelection}>
+                  {['vip', 'regular', 'new', 'at_risk'].map(segment => (
+                    <TouchableOpacity
+                      key={segment}
+                      style={[
+                        styles.segmentOption,
+                        selectedNotificationSegments.includes(segment) &&
+                        styles.segmentOptionActive,
+                      ]}
+                      onPress={() => {
+                        if (selectedNotificationSegments.includes(segment)) {
+                          setSelectedNotificationSegments(
+                            selectedNotificationSegments.filter(s => s !== segment)
+                          );
+                        } else {
+                          setSelectedNotificationSegments([
+                            ...selectedNotificationSegments,
+                            segment,
+                          ]);
+                        }
+                      }}>
+                      <Text
+                        style={[
+                          styles.segmentOptionText,
+                          selectedNotificationSegments.includes(segment) &&
+                          styles.segmentOptionTextActive,
+                        ]}>
+                        {getSegmentLabel(segment as any)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Send Button */}
+              <TouchableOpacity
+                style={[styles.sendButton, sending && styles.sendButtonDisabled]}
+                onPress={handleSendNotification}
+                disabled={sending}>
+                {sending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Send size={20} color="#FFFFFF" />
+                    <Text style={styles.sendButtonText}>Send Notification</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -909,6 +1082,130 @@ const getStyles = (theme: any) => StyleSheet.create({
     gap: 8,
   },
   createCommunicationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: theme.fontFamily.primary,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+    fontFamily: theme.fontFamily.heading,
+  },
+  modalClose: {
+    fontSize: 28,
+    color: theme.colors.textSecondary,
+    fontWeight: '300',
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+    marginTop: 16,
+    fontFamily: theme.fontFamily.primary,
+  },
+  input: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: 16,
+    fontSize: 16,
+    color: theme.colors.text,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+    fontFamily: theme.fontFamily.primary,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  audienceSelector: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  audienceOption: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.surfaceLight,
+    alignItems: 'center',
+  },
+  audienceOptionActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}10`,
+  },
+  audienceOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    fontFamily: theme.fontFamily.primary,
+  },
+  audienceOptionTextActive: {
+    color: theme.colors.primary,
+  },
+  segmentSelection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  segmentOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+  },
+  segmentOptionActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  segmentOptionText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.fontFamily.primary,
+  },
+  segmentOptionTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    padding: 16,
+    borderRadius: theme.borderRadius.lg,
+    marginTop: 24,
+    gap: 8,
+  },
+  sendButtonDisabled: {
+    opacity: 0.6,
+  },
+  sendButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',

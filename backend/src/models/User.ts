@@ -31,6 +31,7 @@ export interface IUser extends Document {
     isVerified: boolean;
     isActive: boolean;
     refreshToken?: string;
+    pushToken?: string; // Expo Push Notification token
     loyaltyPoints: number;
     loyaltyLevel: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
     gamification: {
@@ -142,6 +143,7 @@ const UserSchema: Schema = new Schema(
             default: true,
         },
         refreshToken: String,
+        pushToken: String, // Expo Push Notification token
         loyaltyPoints: {
             type: Number,
             default: 0,

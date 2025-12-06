@@ -27,6 +27,7 @@ import {
   Rocket,
 } from 'lucide-react-native';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { BusinessHeader } from '../../components/BusinessHeader';
 import {
   useCampaignStore,
   type Campaign,
@@ -276,7 +277,8 @@ export default function CampaignsScreen() {
   // ============================================================================
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
+      <BusinessHeader title="Promotions" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -315,32 +317,33 @@ export default function CampaignsScreen() {
               <Zap size={20} color={theme.colors.primary} />
               <Text style={styles.tipsTitle}>Quick Tips</Text>
             </View>
-            <Text style={styles.tipText}>• Simple offers work best (e.g., "Buy 1 Get 1 Free")</Text>
-            <Text style={styles.tipText}>• Send promotions before weekends for best results</Text>
+            <View>
+              <Text style={styles.tipText}>• Active campaigns perform 2.5x better with clear images</Text>
+              <Text style={styles.tipText}>• Try running flash sales on weekends for better engagement</Text>
+            </View>
           </View>
         )}
+        <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Campaign Creator Modal */}
-      <CampaignCreatorModal
-        visible={showCampaignModal}
-        onClose={() => setShowCampaignModal(false)}
-        merchantId={user?.merchantId || ''}
-      />
-
-      {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => setShowCampaignModal(true)}
-        activeOpacity={0.8}
-      >
-        <Plus size={28} color="#FFFFFF" />
+        onPress={() => setShowCampaignModal(true)}>
+        <Plus size={30} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {user?.merchantId && (
+        <CampaignCreatorModal
+          visible={showCampaignModal}
+          onClose={() => setShowCampaignModal(false)}
+          merchantId={user.merchantId}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
+const getStyles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -1,23 +1,20 @@
-import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BarChart3, Megaphone, Users, User, Bell } from 'lucide-react-native';
+import { BarChart3, Megaphone, Users, User } from 'lucide-react-native';
 import { useNotificationStore } from '../../store/notificationStore';
 import NotificationCenter from './notifications';
 import { useAppTheme } from '../../hooks/useAppTheme';
 
 export default function BusinessLayout() {
-    const [showNotifications, setShowNotifications] = useState(false);
-    const unreadCount = useNotificationStore(state => state.unreadCount);
+    const { isModalOpen, setModalOpen } = useNotificationStore();
     const theme = useAppTheme();
-
-    const styles = getStyles(theme);
 
     return (
         <>
             <Tabs
                 key={theme.mode}
                 screenOptions={{
+                    headerShown: false, // Disabling default header
                     tabBarActiveTintColor: theme.colors.primary,
                     tabBarInactiveTintColor: theme.colors.textTertiary,
                     tabBarStyle: {
@@ -36,32 +33,6 @@ export default function BusinessLayout() {
                     tabBarIconStyle: {
                         marginBottom: 0,
                     },
-                    headerShown: true,
-                    headerStyle: {
-                        backgroundColor: theme.colors.background,
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.surfaceLight,
-                    },
-                    headerTintColor: theme.colors.text,
-                    headerTitleStyle: {
-                        fontWeight: '600',
-                        fontSize: 22,
-                    },
-                    headerRight: () => (
-                        <TouchableOpacity
-                            onPress={() => setShowNotifications(true)}
-                            style={styles.notificationButton}
-                        >
-                            <Bell size={22} color={theme.colors.text} />
-                            {unreadCount > 0 && (
-                                <View style={styles.badge}>
-                                    <Text style={styles.badgeText}>
-                                        {unreadCount > 9 ? '9+' : unreadCount}
-                                    </Text>
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    ),
                 }}
             >
                 <Tabs.Screen
@@ -103,57 +74,33 @@ export default function BusinessLayout() {
                 <Tabs.Screen
                     name="customer-detail"
                     options={{
-                        href: null, // Hide from tabs - only accessible via navigation
+                        href: null,
                     }}
                 />
                 <Tabs.Screen
                     name="notifications"
                     options={{
-                        href: null, // Hide from tabs - modal only
+                        href: null,
                     }}
                 />
                 <Tabs.Screen
                     name="campaign-creator-modal"
                     options={{
-                        href: null, // Hide from tabs - modal only
+                        href: null,
                     }}
                 />
                 <Tabs.Screen
                     name="business-profile-edit-modal"
                     options={{
-                        href: null, // Hide from tabs - modal only
+                        href: null,
                     }}
                 />
             </Tabs>
 
             <NotificationCenter
-                visible={showNotifications}
-                onClose={() => setShowNotifications(false)}
+                visible={isModalOpen}
+                onClose={() => setModalOpen(false)}
             />
         </>
     );
 }
-
-const getStyles = (theme: any) => StyleSheet.create({
-    notificationButton: {
-        marginRight: 16,
-        position: 'relative',
-    },
-    badge: {
-        position: 'absolute',
-        top: -4,
-        right: -6,
-        backgroundColor: theme.colors.secondary,
-        borderRadius: 10,
-        minWidth: 18,
-        height: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-    },
-    badgeText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        fontWeight: '600',
-    },
-});

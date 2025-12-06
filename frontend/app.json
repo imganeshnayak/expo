@@ -9,9 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D0D0D"
+      "image": "./assets/images/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#fff"
     },
     "ios": {
       "supportsTablet": true,
@@ -22,8 +22,8 @@
       "package": "com.utopia.deals",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#0D0D0D"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#fff"
       },
       "permissions": [
         "CAMERA",

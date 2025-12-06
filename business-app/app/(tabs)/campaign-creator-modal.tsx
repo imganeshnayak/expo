@@ -11,7 +11,7 @@ import {
     Image,
     ActivityIndicator,
 } from 'react-native';
-import { X, Rocket, TrendingUp, Users, RefreshCw, Image as ImageIcon, Upload } from 'lucide-react-native';
+import { X, Rocket, TrendingUp, Users, RefreshCw, Image as ImageIcon, Upload, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../constants/theme';
 import { api } from '../../lib/api';
@@ -34,7 +34,7 @@ export default function CampaignCreatorModal({
     onClose,
     merchantId,
 }: CampaignCreatorModalProps) {
-    const { templates, startCampaignFromTemplate, updateDraftCampaign, launchCampaign, saveDraft } =
+    const { templates, startCampaignFromTemplate, updateDraftCampaign, launchCampaign, saveDraft, createTemplate } =
         useCampaignStore();
 
     const [step, setStep] = useState(1);
@@ -171,6 +171,48 @@ export default function CampaignCreatorModal({
         saveDraft();
         Alert.alert('Success', 'Campaign saved as draft');
         handleClose();
+    };
+
+    const handleSaveTemplate = () => {
+        if (!campaignName.trim()) {
+            Alert.alert('Error', 'Please enter a name for the template');
+            return;
+        }
+
+        Alert.prompt(
+            'Save as Template',
+            'Enter a name for this template:',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Save',
+                    onPress: (name?: string) => {
+                        const templateName = name || campaignName;
+                        createTemplate({
+                            name: templateName,
+                            category: 'acquisition', // Default
+                            difficulty: 'simple',
+                            description: description || 'Custom template',
+                            estimatedROI: 0,
+                            successRate: 0,
+                            icon: 'rocket',
+                            defaultConfig: {
+                                type: campaignType,
+                                targeting: { audience, location: 'all', timing: 'always' },
+                                budget: { total: parseInt(budget) || 5000, spent: 0 },
+                                offer: {
+                                    discountPercent: parseInt(discountPercent),
+                                    rideReimbursement: parseInt(rideReimbursement),
+                                },
+                            }
+                        });
+                        Alert.alert('Success', 'Template saved successfully!');
+                    }
+                }
+            ],
+            'plain-text',
+            campaignName
+        );
     };
 
     const handleClose = () => {
@@ -415,12 +457,15 @@ export default function CampaignCreatorModal({
                 {/* Footer */}
                 {step === 2 && (
                     <View style={styles.footer}>
+                        <TouchableOpacity style={styles.secondaryButton} onPress={handleSaveTemplate}>
+                            <Save size={20} color={theme.colors.text} />
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.secondaryButton} onPress={handleSaveDraft}>
-                            <Text style={styles.secondaryButtonText}>Save Draft</Text>
+                            <Text style={styles.secondaryButtonText}>Draft</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.primaryButton} onPress={handleLaunch}>
                             <Rocket size={20} color="#FFFFFF" />
-                            <Text style={styles.primaryButtonText}>Launch Campaign</Text>
+                            <Text style={styles.primaryButtonText}>Launch</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -464,6 +509,7 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         padding: 20,
+        backgroundColor: theme.colors.background,
     },
     sectionTitle: {
         fontSize: 20,
@@ -580,14 +626,17 @@ const styles = StyleSheet.create({
         gap: 12,
         borderTopWidth: 1,
         borderTopColor: theme.colors.surfaceLight,
+        backgroundColor: theme.colors.background,
     },
     secondaryButton: {
-        flex: 1,
         paddingVertical: 14,
+        paddingHorizontal: 16,
         borderRadius: 12,
         backgroundColor: theme.colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: theme.colors.surfaceLight,
     },
     secondaryButtonText: {
         fontSize: 16,

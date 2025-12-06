@@ -22,6 +22,7 @@ export interface BusinessOverview {
   customersTrend: number;
   revenueTrend: number;
   aovTrend: number;
+  dailyRevenue: { value: number; label: string }[];
 }
 
 export interface CustomerDemographics {
@@ -147,6 +148,15 @@ const generateSampleAnalytics = (merchantId: string, period: TimePeriod): Busine
       customersTrend: 23.5, // +23.5%
       revenueTrend: 18.2, // +18.2%
       aovTrend: -4.1, // -4.1%
+      dailyRevenue: [
+        { value: 4500, label: 'Mon' },
+        { value: 5200, label: 'Tue' },
+        { value: 4800, label: 'Wed' },
+        { value: 6100, label: 'Thu' },
+        { value: 8500, label: 'Fri' },
+        { value: 9200, label: 'Sat' },
+        { value: 5800, label: 'Sun' },
+      ],
     },
 
     customerInsights: {
@@ -481,6 +491,7 @@ const mapBackendToFrontend = (backendData: any, campaignData?: any): BusinessAna
       customersTrend: 0,
       revenueTrend: 0,
       aovTrend: 0,
+      dailyRevenue: metrics.dailyRevenue || [],
     },
 
     customerInsights: {

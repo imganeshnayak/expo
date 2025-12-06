@@ -26,6 +26,7 @@ interface NotificationState {
     notifications: Notification[];
     unreadCount: number;
     isLoading: boolean;
+    isModalOpen: boolean;
 
     // Actions
     markAsRead: (id: string) => void;
@@ -34,6 +35,7 @@ interface NotificationState {
     deleteNotification: (id: string) => void;
     clearAll: () => void;
     getUnreadCount: () => number;
+    setModalOpen: (isOpen: boolean) => void;
 }
 
 // Hardcoded notifications for demo
@@ -149,6 +151,7 @@ export const useNotificationStore = create<NotificationState>()(
             notifications: [],
             unreadCount: 0,
             isLoading: false,
+            isModalOpen: false,
 
             initializeNotifications: async () => {
                 set({ isLoading: true });
@@ -250,10 +253,13 @@ export const useNotificationStore = create<NotificationState>()(
             },
 
             getUnreadCount: () => get().unreadCount,
+
+            setModalOpen: (isOpen: boolean) => set({ isModalOpen: isOpen }),
         }),
         {
             name: 'uma-notification-storage',
             storage: createJSONStorage(() => AsyncStorage),
+            partialize: (state) => ({ notifications: state.notifications, unreadCount: state.unreadCount }),
         }
     )
 );

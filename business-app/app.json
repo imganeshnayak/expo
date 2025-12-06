@@ -8,6 +8,11 @@
     "scheme": "umabusiness",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#fff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.uma.business"
@@ -24,7 +29,10 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": true
     }

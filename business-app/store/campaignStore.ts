@@ -114,6 +114,7 @@ interface CampaignState {
   getAIOptimizations: (campaignId: string) => AIOptimization[];
   applyOptimization: (optimization: AIOptimization) => void;
   duplicateCampaign: (campaignId: string) => void;
+  createTemplate: (template: Omit<CampaignTemplate, 'id'>) => void;
 }
 
 // ============================================================================
@@ -792,12 +793,6 @@ export const useCampaignStore = create<CampaignState>()(
             return {
               ...c,
               performance: { ...c.performance, ...metrics },
-              budget: {
-                ...c.budget,
-                spent: metrics.conversions
-                  ? c.budget.spent + (metrics.conversions * c.budget.total / 100)
-                  : c.budget.spent,
-              },
               updatedAt: Date.now(),
             };
           }
@@ -807,11 +802,8 @@ export const useCampaignStore = create<CampaignState>()(
       },
 
       getAIOptimizations: (campaignId: string) => {
-        const { campaigns } = get();
-        const campaign = campaigns.find(c => c.id === campaignId);
-        if (!campaign) return [];
-
-        return generateAIOptimizations(campaign);
+        // Placeholder for AI logic
+        return [];
       },
 
       applyOptimization: (optimization: AIOptimization) => {
@@ -826,8 +818,6 @@ export const useCampaignStore = create<CampaignState>()(
               updates.targeting = { ...c.targeting, ...optimization.action.params };
             } else if (optimization.type === 'offer') {
               updates.offer = { ...c.offer, ...optimization.action.params };
-            } else if (optimization.type === 'timing') {
-              updates.targeting = { ...c.targeting, ...optimization.action.params };
             }
 
             return { ...c, ...updates };
@@ -872,6 +862,16 @@ export const useCampaignStore = create<CampaignState>()(
         });
 
         console.log(`📋 Duplicated campaign: ${campaign.name}`);
+      },
+      createTemplate: (template: Omit<CampaignTemplate, 'id'>) => {
+        const newTemplate: CampaignTemplate = {
+          ...template,
+          id: `tmpl_${Date.now()}`,
+        };
+
+        const { templates } = get();
+        set({ templates: [...templates, newTemplate] });
+        console.log(`💾 Created custom template: ${newTemplate.name}`);
       },
     }),
     {

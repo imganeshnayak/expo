@@ -16,6 +16,7 @@ import crmRoutes from './routes/business/crm';
 import campaignRoutes from './routes/business/campaigns';
 import analyticsRoutes from './routes/business/analytics';
 import notificationRoutes from './routes/business/notifications';
+import pushNotificationRoutes from './routes/business/pushNotifications';
 import uploadRoutes from './routes/uploadRoutes';
 
 // Load environment variables
@@ -59,6 +60,7 @@ app.use('/api/crm', crmRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push-notifications', pushNotificationRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // Basic route
