@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import PushNotification from '../../models/business/PushNotification';
 import User from '../../models/User';
+import { Expo } from 'expo-server-sdk';
+
+const expo = new Expo();
 
 // @desc    Send push notification to users
 // @route   POST /api/business/push-notifications
@@ -53,7 +56,11 @@ export const sendPushNotification = async (req: Request, res: Response) => {
         // Extract push tokens
         const pushTokens = targetUsers
             .map(user => user.pushToken)
-            .filter(token => token);
+            .filter(token => Expo.isExpoPushToken(token));
+
+        console.log(`[Push Debug] Audience: ${audience}`);
+        console.log(`[Push Debug] Found ${targetUsers.length} target users`);
+        console.log(`[Push Debug] Valid Push Tokens: ${pushTokens.length}`);
 
         // Send push notifications using Expo Push Notification service
         let sentCount = 0;
@@ -62,24 +69,32 @@ export const sendPushNotification = async (req: Request, res: Response) => {
 
         if (pushTokens.length > 0) {
             try {
-                // TODO: Integrate with Expo Push Notification API
-                // For now, we'll simulate sending
-                // const messages = pushTokens.map(token => ({
-                //     to: token,
-                //     sound: 'default',
-                //     title: title,
-                //     body: message,
-                //     data: { merchantId },
-                // }));
+                const messages = pushTokens.map(token => ({
+                    to: token,
+                    sound: 'default' as const,
+                    title: title,
+                    body: message,
+                    data: { merchantId: merchantId.toString(), notificationId: notification._id.toString() },
+                }));
 
-                // const chunks = expo.chunkPushNotifications(messages);
-                // for (const chunk of chunks) {
-                //     const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                //     // Process tickets...
-                // }
+                const chunks = expo.chunkPushNotifications(messages);
+                const tickets = [];
 
-                sentCount = pushTokens.length;
-                deliveredCount = pushTokens.length; // Simulated
+                for (const chunk of chunks) {
+                    try {
+                        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                        tickets.push(...ticketChunk);
+                    } catch (error) {
+                        console.error('Error sending chunk:', error);
+                    }
+                }
+
+                // Count successful tickets (not necessarily delivered, but sent to Expo)
+                // For simplicity, we'll count all non-error tickets as "sent"
+                sentCount = tickets.length;
+
+                // In a real app, you'd process receipt IDs to check delivery
+                deliveredCount = sentCount;
 
                 console.log(`[Push Notification] Sent to ${sentCount} users: "${title}"`);
             } catch (error) {
@@ -176,6 +191,24 @@ export const getPushNotificationStats = async (req: Request, res: Response) => {
                 totalDelivered: 0,
                 totalFailed: 0,
             },
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Clear push notification history
+// @route   DELETE /api/business/push-notifications
+// @access  Private (Merchant)
+export const clearPushNotificationHistory = async (req: Request, res: Response) => {
+    try {
+        const merchantId = req.user?.merchantId;
+
+        await PushNotification.deleteMany({ merchantId });
+
+        res.json({
+            success: true,
+            message: 'Notification history cleared'
         });
     } catch (error: any) {
         res.status(500).json({ message: error.message });

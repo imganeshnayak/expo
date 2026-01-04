@@ -86,7 +86,7 @@ export const authService = {
 
     // Get current user profile
     async getMe(): Promise<ApiResponse<UserProfile>> {
-        return api.get<UserProfile>(API_ENDPOINTS.AUTH.ME, true);
+        return api.get<UserProfile>(API_ENDPOINTS.AUTH.ME, {}, true);
     },
 
     // Logout user

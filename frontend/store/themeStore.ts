@@ -24,12 +24,47 @@ export const useThemeStore = create<ThemeState>()(
 );
 
 // Hook to get the current theme object
+import { useUserStore } from './userStore';
+
 export const useAppTheme = () => {
     const isDarkMode = useThemeStore((state) => state.isDarkMode);
+    // Get rank safely (might be null during init)
+    const rank = useUserStore((state) => state.gamification?.rank?.league);
+
+    let colors = isDarkMode ? { ...darkColors } : { ...lightColors };
+
+    // RANK THEME OVERRIDES
+    if (rank === 'Gold') {
+        colors = {
+            ...colors,
+            primary: '#FFD700', // Gold
+            primaryLight: 'rgba(255, 215, 0, 0.2)',
+        };
+    } else if (rank === 'Platinum') {
+        colors = {
+            ...colors,
+            primary: '#E5E4E2', // Platinum
+            background: isDarkMode ? '#000000' : colors.background, // Pure Black if Dark Mode
+            surface: isDarkMode ? '#111111' : colors.surface,
+        };
+    } else if (rank === 'Diamond') {
+        colors = {
+            ...colors,
+            primary: '#00F0FF', // Cyan/Holo
+            primaryLight: 'rgba(0, 240, 255, 0.2)',
+        };
+    } else if (rank === 'Silver') {
+        // Subtle silver tint
+        colors = {
+            ...colors,
+            primary: isDarkMode ? '#C0C0C0' : '#A0A0A0',
+        }
+    }
 
     return {
         ...theme,
-        colors: isDarkMode ? darkColors : lightColors,
+        colors,
         isDark: isDarkMode,
+        mode: rank || 'Bronze', // Expose mode for advanced UI checks
     };
 };

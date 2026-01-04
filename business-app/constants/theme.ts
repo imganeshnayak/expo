@@ -32,8 +32,11 @@ export const commonTheme = {
   },
 
   fontFamily: {
-    primary: 'Belanosima',
-    heading: 'EricaOne',
+    primary: 'PlusJakartaSans-Regular',
+    medium: 'PlusJakartaSans-Medium',
+    semibold: 'PlusJakartaSans-SemiBold',
+    heading: 'PlusJakartaSans-Bold',
+    display: 'PlusJakartaSans-ExtraBold',
     system: 'System',
   },
 

@@ -1,204 +1,247 @@
-import { Tabs } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Animated, Text, Dimensions, Platform } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import {
   Home,
-  SquareStack,
-  User,
+  LayoutGrid, // For Categories
+  Trophy, // For Missions (~Gamification)
+  Target, // For Missions
+  Users, // For Social
+  User, // For Profile
   QrCode,
-  Target,
-  LucideIcon
+  Gamepad2, // For Game
 } from 'lucide-react-native';
-import { theme } from '@/constants/theme';
 import { useAppTheme } from '@/store/themeStore';
+import * as Haptics from 'expo-haptics';
 
-interface TabIconProps {
-  icon: LucideIcon;
-  focused: boolean;
-  size: number;
-  color: string;
-}
 
-// Simple animated icon with scale effect
-const AnimatedTabIcon = ({ icon: Icon, focused, size, color }: TabIconProps) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+const { width } = Dimensions.get('window');
+
+// ------------------------------------------------------------------
+// CUSTOM TAB BUTTON
+// ------------------------------------------------------------------
+const TabButton = ({
+  label,
+  icon: Icon,
+  focused,
+  onPress,
+  color,
+  isCenter = false
+}: any) => {
+  const animatedValue = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const scaleValue = useRef(new Animated.Value(isCenter ? 1.2 : 1)).current;
 
   useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: focused ? 1.2 : 1,
-      tension: 200,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.spring(animatedValue, {
+        toValue: focused ? 1 : 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 12,
+      }),
+      Animated.spring(scaleValue, {
+        toValue: focused ? (isCenter ? 1.1 : 1.2) : (isCenter ? 1 : 1), // Gentle scale
+        useNativeDriver: true,
+      })
+    ]).start();
   }, [focused]);
 
+  // Center Button Styles (Floating Home)
+  if (isCenter) {
+    return (
+      <View style={styles.centerBtnWrapper}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onPress();
+          }}
+          style={[styles.centerBtn, { backgroundColor: focused ? color : '#333' }]}
+        >
+          <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+            <Icon size={28} color="#FFF" />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Standard Button Styles
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Icon
-        size={size}
-        color={color}
-        fill={focused ? color : 'transparent'}
-      />
-    </Animated.View>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress();
+      }}
+      style={styles.tabBtn}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleValue }], marginBottom: 4 }}>
+        <Icon size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+      </Animated.View>
+      {focused && (
+        <Animated.View style={{ opacity: animatedValue }}>
+          <View style={[styles.activeDot, { backgroundColor: color }]} />
+        </Animated.View>
+      )}
+    </TouchableOpacity>
   );
 };
 
-// Simple active dot indicator
-const ActiveDot = ({ focused, theme }: { focused: boolean, theme: any }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: focused ? 1 : 0,
-      tension: 150,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
-  }, [focused]);
-
-  return (
-    <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          bottom: -6,
-          width: 4,
-          height: 4,
-          borderRadius: 2,
-          backgroundColor: theme.colors.primary,
-        },
-        {
-          transform: [{ scale: scaleAnim }],
-          opacity: scaleAnim,
-        },
-      ]}
-    />
-  );
-};
-
+// ------------------------------------------------------------------
+// ROOT LAYOUT
+// ------------------------------------------------------------------
 export default function TabLayout() {
   const theme = useAppTheme();
-  const styles = getStyles(theme);
+
+  // Custom Tab Bar Container
+  // We use this to render the custom shape or background if needed.
+  // For "Smart Animated Footer", we'll just use the standard tab bar styling with our custom buttons.
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarShowLabel: false, // We handle labels/dots manually
         tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.surfaceLight,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 70,
+          position: 'absolute',
+          bottom: 10, // Moved down from 20 to reduce overlap
+          left: 16,
+          right: 16,
+          height: 65, // Slightly reduced from 70
+          backgroundColor: theme.colors.surface, // Floating pill look
+          borderRadius: 32,
+          borderTopWidth: 0,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 5 },
+          shadowOpacity: 0.15,
+          shadowRadius: 10,
+          paddingBottom: 0, // Reset default
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-          marginTop: 4,
-        },
-      }}>
+      }}
+    >
+      {/* 1. HOME (Left) */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon
-                icon={Home}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} theme={theme} />
-            </View>
+          tabBarButton: (props) => (
+            <TabButton
+              {...props}
+              label="Home"
+              icon={Home}
+              color={props.accessibilityState?.selected ? theme.colors.primary : theme.colors.textSecondary}
+              focused={props.accessibilityState?.selected}
+            />
           ),
         }}
       />
-      <Tabs.Screen
-        name="categories"
-        options={{
-          title: 'Categories',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon
-                icon={SquareStack}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} theme={theme} />
-            </View>
-          ),
-        }}
-      />
+
+      {/* 2. MISSIONS (Left-Center) */}
       <Tabs.Screen
         name="missions"
         options={{
-          title: 'Missions',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon
-                icon={Target}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} theme={theme} />
-            </View>
+          tabBarButton: (props) => (
+            <TabButton
+              {...props}
+              label="Missions"
+              icon={Target}
+              color={props.accessibilityState?.selected ? '#FFD700' : theme.colors.textSecondary}
+              focused={props.accessibilityState?.selected}
+            />
           ),
         }}
       />
+
+      {/* 3. GAME (Center - Floating) - PRIMARY EXPERIENCE */}
       <Tabs.Screen
-        name="qr"
+        name="game"
         options={{
-          title: 'QR Code',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon
-                icon={QrCode}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} theme={theme} />
-            </View>
+          tabBarButton: (props) => (
+            <TabButton
+              {...props}
+              label="Hunt"
+              icon={Gamepad2}
+              isCenter={true}
+              color={'#00D9A3'}
+              focused={props.accessibilityState?.selected}
+            />
           ),
         }}
       />
+
+      {/* 4. SOCIAL (Right-Center) */}
+      <Tabs.Screen
+        name="social"
+        options={{
+          tabBarButton: (props) => (
+            <TabButton
+              {...props}
+              label="Social"
+              icon={Users}
+              color={props.accessibilityState?.selected ? '#FF6B6B' : theme.colors.textSecondary}
+              focused={props.accessibilityState?.selected}
+            />
+          ),
+        }}
+      />
+
+      {/* 5. PROFILE (Right) */}
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ size, color, focused }) => (
-            <View style={styles.iconContainer}>
-              <AnimatedTabIcon
-                icon={User}
-                focused={focused}
-                size={size}
-                color={color}
-              />
-              <ActiveDot focused={focused} theme={theme} />
-            </View>
+          tabBarButton: (props) => (
+            <TabButton
+              {...props}
+              label="Profile"
+              icon={User}
+              color={props.accessibilityState?.selected ? theme.colors.text : theme.colors.textSecondary}
+              focused={props.accessibilityState?.selected}
+            />
           ),
         }}
       />
-      {/* Hide search tab but keep the file */}
-      <Tabs.Screen
-        name="search"
-        options={{
-          href: null, // This hides the tab from the navigation
-        }}
-      />
+
+      {/* HIDDEN TABS */}
+      <Tabs.Screen name="search" options={{ href: null }} />
+      <Tabs.Screen name="categories" options={{ href: null }} />
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
-  iconContainer: {
+const styles = StyleSheet.create({
+  tabBtn: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
+  },
+  centerBtnWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  centerBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -40, // Floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 4,
+    borderColor: '#F2F2F2', // Match background color to simulate "cutout" if possible, or just white border
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 4,
   },
 });

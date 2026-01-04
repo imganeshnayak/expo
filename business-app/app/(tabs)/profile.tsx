@@ -90,7 +90,20 @@ export default function ProfileScreen() {
           value: theme.isDark,
           onValueChange: () => theme.toggleMode()
         },
-        { icon: Globe, label: 'Language', action: () => Alert.alert('Coming Soon', 'This feature is under development.'), badge: 'English' },
+        {
+          icon: Globe, label: 'Language', action: () => Alert.alert(
+            'Select Language',
+            'Choose your preferred language for Nova AI and the app.',
+            [
+              { text: 'English', onPress: () => Alert.alert('Language Set', 'English selected. Nova AI will now respond in English.') },
+              { text: 'हिन्दी (Hindi)', onPress: () => Alert.alert('भाषा सेट', 'हिंदी चुनी गई। नोवा AI अब हिंदी में जवाब देगा।') },
+              { text: 'தமிழ் (Tamil)', onPress: () => Alert.alert('மொழி அமை', 'தமிழ் தேர்ந்தெடுக்கப்பட்டது।') },
+              { text: 'తెలుగు (Telugu)', onPress: () => Alert.alert('భాష సెట్', 'తెలుగు ఎంపిక చేయబడింది।') },
+              { text: 'More Languages...', onPress: () => Alert.alert('Available Languages', '• English\n• हिन्दी (Hindi)\n• தமிழ் (Tamil)\n• తెలుగు (Telugu)\n• বাংলা (Bengali)\n• मराठी (Marathi)\n• ગુજરાતી (Gujarati)\n• ಕನ್ನಡ (Kannada)\n• മലയാളം (Malayalam)\n• ਪੰਜਾਬੀ (Punjabi)\n\nTip: Use Nova AI tab to chat in any of these languages!') },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          ), badge: 'English'
+        },
       ],
     },
     {

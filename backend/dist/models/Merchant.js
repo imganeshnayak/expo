@@ -69,6 +69,7 @@ const MerchantSchema = new mongoose_1.Schema({
     },
     businessHours: Map,
     socialMedia: Map,
+    paymentMethods: [String],
 }, {
     timestamps: true,
 });

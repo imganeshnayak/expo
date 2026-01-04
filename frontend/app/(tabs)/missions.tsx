@@ -52,7 +52,10 @@ export default function MissionsScreen() {
   const celebrationAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
+    console.log('[MissionsScreen] MOUNTED - Initializing missions');
+    // Always initialize missions for demo - no rank requirement
     initializeMissions();
+    return () => console.log('[MissionsScreen] UNMOUNTED');
   }, []);
 
   const recommendedMissions = getRecommendedMissions();
@@ -377,26 +380,7 @@ export default function MissionsScreen() {
       {/* Celebration Overlay */}
       {showCelebration && <CelebrationOverlay />}
 
-      {/* Locked Feature Overlay */}
-      {gamification?.rank.league === 'Bronze' && (
-        <View style={styles.lockedOverlay}>
-          <View style={styles.lockedContent}>
-            <View style={styles.lockedIconContainer}>
-              <Trophy size={40} color={theme.colors.textSecondary} />
-            </View>
-            <Text style={styles.lockedTitle}>Missions Locked</Text>
-            <Text style={styles.lockedText}>
-              Reach <Text style={{ color: '#BDC3C7', fontWeight: '700' }}>Silver I</Text> to unlock daily missions and earn rewards.
-            </Text>
-            <View style={styles.lockedProgress}>
-              <Text style={styles.lockedProgressText}>Current Rank: {gamification.rank.name}</Text>
-              <View style={styles.lockedProgressBar}>
-                <View style={[styles.lockedProgressBarFill, { width: '40%' }]} />
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Missions now always unlocked for demo - removed Bronze restriction */}
     </SafeAreaView>
   );
 }
@@ -629,7 +613,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    maxHeight: '80%',
+    paddingBottom: 100, // Extra padding for tab bar
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',

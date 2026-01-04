@@ -127,7 +127,10 @@ export default function LoginScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity style={styles.forgotPassword}>
+                        <TouchableOpacity
+                            style={styles.forgotPassword}
+                            onPress={() => Alert.alert('Coming Soon', 'Password reset will be available in the next update.')}
+                        >
                             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                         </TouchableOpacity>
 
@@ -151,20 +154,9 @@ export default function LoginScreen() {
                     </View>
 
                     <View style={styles.footerSection}>
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>Or continue with</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
 
-                        <View style={styles.socialButtons}>
-                            <TouchableOpacity style={styles.socialButton}>
-                                <Chrome color={theme.colors.text} size={22} />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.socialButton}>
-                                <Apple color={theme.colors.text} size={22} />
-                            </TouchableOpacity>
-                        </View>
+
+                        {/* Social login buttons removed as per clean-up request */}
 
                         <View style={styles.signupContainer}>
                             <Text style={styles.footerText}>Don't have an account? </Text>

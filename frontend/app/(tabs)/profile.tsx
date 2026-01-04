@@ -10,16 +10,28 @@ import {
   Animated,
   Platform,
   Easing,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, TrendingUp, TrendingDown, ArrowDownToLine, Award, Users, Zap, Moon, Sun } from 'lucide-react-native';
+import { User, Heart, Bell, MapPin, Settings, Circle as HelpCircle, Shield, Star, ChevronRight, CreditCard as Edit3, CreditCard, Gift, Bookmark, Share2, TrendingUp, TrendingDown, ArrowDownToLine, Award, Users, Zap, Moon, Sun, QrCode, BrainCircuit } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useLoyaltyStore } from '@/store/loyaltyStore';
 import { useAppTheme, useThemeStore } from '@/store/themeStore';
 import { useAuth } from '../_layout';
 import { authService, loyaltyService, LoyaltyProfile } from '@/services/api';
 import { useUserStore } from '@/store/userStore';
+import { useSocialStore } from '@/store/socialStore';
 import { canAccessFeature } from '@/constants/gamification';
+import { Sparkles } from 'lucide-react-native';
+
+const ARCHETYPES = [
+  { id: 'deal_hunter', title: 'The Deal Hunter' },
+  { id: 'socialite', title: 'The Socialite' },
+  { id: 'explorer', title: 'The Explorer' },
+  { id: 'saver', title: 'The Saver' },
+];
 
 // --- Micro-Animation Components ---
 
@@ -101,12 +113,16 @@ export default function ProfileScreen() {
   const [favoritedDeals, setFavoritedDeals] = useState<any[]>([]);
   const [loadingClaimed, setLoadingClaimed] = useState(false);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const { myArchetype, fetchArchetype } = useSocialStore();
 
   useEffect(() => {
-    loadLoyaltyProfile();
-    loadClaimedDeals();
-    loadFavorites();
-  }, []);
+    if (user) {
+      loadLoyaltyProfile();
+      loadClaimedDeals();
+      loadFavorites();
+      fetchArchetype();
+    }
+  }, [user]);
 
   useEffect(() => {
     // Update local state when user profile changes
@@ -116,6 +132,8 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
+  // ... inside ProfileScreen component
+
   const loadLoyaltyProfile = async () => {
     try {
       const response = await loyaltyService.getProfile();
@@ -124,6 +142,81 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Failed to load loyalty profile', error);
+    }
+  };
+
+  const handleUpdateAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need access to your photos to update your profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+
+        // Optimistic update
+        const updatedUser = { ...user };
+        if (updatedUser.profile) {
+          updatedUser.profile.avatar = base64Image;
+          // @ts-ignore
+          useUserStore.getState().setUser(updatedUser);
+        }
+
+        Alert.alert('Success', 'Profile picture updated!');
+
+        // TODO: Send to backend
+        // await userService.updateAvatar(base64Image); 
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      Alert.alert('Error', 'Failed to update profile picture.');
+    }
+  };
+
+  const handleUpdateLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need location permission to set your location.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (geocode.length > 0) {
+        const address = `${geocode[0].city}, ${geocode[0].region}`;
+
+        // Optimistic update
+        const updatedUser = { ...user };
+        if (updatedUser.profile) {
+          updatedUser.profile.location = {
+            address,
+            coordinates: { latitude, longitude }
+          };
+          // @ts-ignore
+          useUserStore.getState().setUser(updatedUser);
+        }
+
+        Alert.alert('Location Updated', `Set to: ${address}`);
+
+        // TODO: Send to backend
+        // await userService.updateProfile({ location: { address, coordinates: { latitude, longitude } } });
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+      Alert.alert('Error', 'Failed to fetch location.');
     }
   };
 
@@ -311,19 +404,54 @@ export default function ProfileScreen() {
             <View style={styles.profileInfo}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatar}>
-                  <User size={32} color={theme.colors.text} strokeWidth={1.5} />
+                  {user?.profile?.avatar ? (
+                    <Image
+                      source={{ uri: user.profile.avatar }}
+                      style={{ width: '100%', height: '100%', borderRadius: 36 }}
+                    />
+                  ) : (
+                    <User size={32} color={theme.colors.text} strokeWidth={1.5} />
+                  )}
                 </View>
-                <TouchableOpacity style={styles.editButton} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  activeOpacity={0.8}
+                  onPress={handleUpdateAvatar}
+                >
                   <Edit3 size={12} color={theme.colors.background} />
                 </TouchableOpacity>
               </View>
               <View style={styles.userDetails}>
                 <Text style={styles.userName}>{user?.profile?.name || 'User'}</Text>
                 <Text style={styles.userEmail}>{user?.email || 'email@example.com'}</Text>
-                <View style={styles.locationContainer}>
+                <TouchableOpacity
+                  style={styles.locationContainer}
+                  onPress={handleUpdateLocation}
+                >
                   <MapPin size={12} color={theme.colors.primary} />
-                  <Text style={styles.userLocation}>{user?.profile?.location?.address || 'Location not set'}</Text>
-                </View>
+                  <Text style={styles.userLocation}>{user?.profile?.location?.address || 'Set Location'}</Text>
+                </TouchableOpacity>
+
+                {/* QR Code Button */}
+                <TouchableOpacity
+                  style={[styles.locationContainer, { marginTop: 8, backgroundColor: 'rgba(0, 217, 163, 0.15)' }]}
+                  onPress={() => router.push('/my-code' as any)}
+                >
+                  <QrCode size={14} color={theme.colors.primary} />
+                  <Text style={[styles.userLocation, { fontSize: 13 }]}>My Code</Text>
+                </TouchableOpacity>
+
+                {myArchetype && (
+                  <TouchableOpacity
+                    style={[styles.locationContainer, { marginTop: 4, backgroundColor: theme.colors.primaryLight }]}
+                    onPress={() => router.push('/my-persona')}
+                  >
+                    <BrainCircuit size={12} color={theme.colors.primary} />
+                    <Text style={[styles.userLocation, { color: theme.colors.primary }]}>
+                      {ARCHETYPES.find(a => a.id === myArchetype)?.title || 'Explorer'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 

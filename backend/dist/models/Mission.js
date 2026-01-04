@@ -42,7 +42,7 @@ const MissionSchema = new mongoose_1.Schema({
     description: String,
     type: {
         type: String,
-        enum: ['ride_count', 'spend_amount', 'referral_count', 'profile_completion'],
+        enum: ['ride_count', 'spend_amount', 'referral_count', 'profile_completion', 'visit', 'scan', 'upload_bill', 'share', 'review'],
         required: true,
     },
     requirement: {
@@ -53,6 +53,17 @@ const MissionSchema = new mongoose_1.Schema({
         type: Number,
         required: true,
     },
+    xpReward: {
+        type: Number,
+        required: true,
+        default: 0,
+    },
+    frequency: {
+        type: String,
+        enum: ['daily', 'weekly', 'one_time'],
+        default: 'one_time',
+    },
+    minRank: String,
     icon: String,
     isActive: {
         type: Boolean,
@@ -60,6 +71,39 @@ const MissionSchema = new mongoose_1.Schema({
     },
     startDate: Date,
     endDate: Date,
+    // Frontend specific fields
+    category: {
+        type: String,
+        enum: ['food', 'entertainment', 'wellness', 'shopping', 'adventure'],
+        default: 'adventure'
+    },
+    categoryColor: {
+        type: String,
+        default: '#E74C3C'
+    },
+    difficulty: {
+        type: String,
+        enum: ['easy', 'medium', 'hard'],
+        default: 'medium'
+    },
+    timeEstimate: {
+        type: String,
+        default: '1-2 hours'
+    },
+    estimatedSavings: {
+        type: Number,
+        default: 0
+    },
+    steps: [{
+            id: String,
+            type: { type: String, enum: ['ride', 'deal', 'visit', 'scan'] },
+            dealId: String,
+            merchantId: String,
+            instructions: String,
+            completed: { type: Boolean, default: false },
+            actionRequired: { type: Boolean, default: true },
+            deepLink: String
+        }]
 }, {
     timestamps: true,
 });

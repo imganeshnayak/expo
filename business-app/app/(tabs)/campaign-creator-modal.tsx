@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,414 +8,565 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
+    Dimensions,
+    Switch,
     Image,
-    ActivityIndicator,
 } from 'react-native';
-import { X, Rocket, TrendingUp, Users, RefreshCw, Image as ImageIcon, Upload, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { theme } from '../../constants/theme';
-import { api } from '../../lib/api';
+import {
+    X,
+    Rocket,
+    TrendingUp,
+    Users,
+    Zap,
+    Target,
+    Gift,
+    Clock,
+    Check,
+    ArrowRight,
+    ArrowLeft,
+    Sparkles,
+    Crown,
+    RefreshCw,
+    Plus,
+    Percent,
+    Car,
+    Award,
+    Calendar,
+    Tag,
+    ShoppingBag,
+    Timer,
+    MapPin,
+    Camera,
+    ImageIcon,
+} from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import {
     useCampaignStore,
     type CampaignType,
-    type AudienceType,
-    getCategoryColor,
+    type CampaignTemplate,
 } from '../../store/campaignStore';
-import { BUSINESS_CATEGORIES } from '../../constants/categories';
+
+const { width } = Dimensions.get('window');
 
 interface CampaignCreatorModalProps {
-    visible: boolean;
-    onClose: () => void;
-    merchantId: string;
+    visible?: boolean;
+    onClose?: () => void;
+    merchantId?: string;
 }
 
+type DisplayCategory = 'All' | 'Loyalty' | 'Growth' | 'Retention';
+
 export default function CampaignCreatorModal({
-    visible,
+    visible = true,
     onClose,
-    merchantId,
+    merchantId = 'demo-merchant',
 }: CampaignCreatorModalProps) {
-    const { templates, startCampaignFromTemplate, updateDraftCampaign, launchCampaign, saveDraft, createTemplate } =
-        useCampaignStore();
+    const theme = useAppTheme();
+    const router = useRouter();
+    const {
+        launchCampaign,
+        templates,
+        loadTemplates,
+        startCampaignFromTemplate,
+        draftCampaign,
+        updateDraftCampaign
+    } = useCampaignStore();
 
+    const safeClose = () => {
+        if (onClose) onClose();
+        else router.back();
+    };
+
+    useEffect(() => {
+        loadTemplates();
+    }, []);
+
+    // Wizard State
     const [step, setStep] = useState(1);
-    const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-    const [campaignName, setCampaignName] = useState('');
-    const [campaignType, setCampaignType] = useState<CampaignType>('discount');
-    const [audience, setAudience] = useState<AudienceType>('all');
-    const [budget, setBudget] = useState('5000');
-    const [discountPercent, setDiscountPercent] = useState('15');
-    const [rideReimbursement, setRideReimbursement] = useState('100');
+    const [activeTab, setActiveTab] = useState<DisplayCategory>('All');
+    const [selectedType, setSelectedType] = useState<CampaignType | 'custom'>('discount');
 
-    // New Fields
+    // Common Config
+    const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [consumerCategory, setConsumerCategory] = useState('Food');
-    const [maxRedemptions, setMaxRedemptions] = useState('100');
-    const [originalPrice, setOriginalPrice] = useState('0');
-    const [images, setImages] = useState<string[]>([]);
-    const [uploading, setUploading] = useState(false);
 
-    const handleTemplateSelect = (templateId: string) => {
-        setSelectedTemplate(templateId);
-        startCampaignFromTemplate(templateId, merchantId);
-        const template = templates.find(t => t.id === templateId);
-        if (template?.defaultConfig) {
-            setCampaignName(template.name);
-            setCampaignType(template.defaultConfig.type || 'discount');
-            setAudience(template.defaultConfig.targeting?.audience || 'all');
-            setBudget(template.defaultConfig.budget?.total?.toString() || '5000');
-            setDiscountPercent(template.defaultConfig.offer?.discountPercent?.toString() || '15');
-            setRideReimbursement(template.defaultConfig.offer?.rideReimbursement?.toString() || '100');
+    // Stamp Card Config
+    const [stampsRequired, setStampsRequired] = useState('8');
+    const [rewardItem, setRewardItem] = useState('Free Coffee');
+    const [bonusStamps, setBonusStamps] = useState('1');
 
-            // New Fields
-            setDescription(template.description || '');
-            setConsumerCategory('Food'); // Default or map from template category
-            setMaxRedemptions(template.defaultConfig.targeting?.maxUses?.toString() || '100');
-            setOriginalPrice('0');
-            setImages([]);
+    // Discount Config
+    const [discountPercent, setDiscountPercent] = useState('20');
+    const [minSpend, setMinSpend] = useState('0');
+    const [maxDiscount, setMaxDiscount] = useState('500');
+
+    // Flash Deal Config
+    const [duration, setDuration] = useState('2');
+    const [slotsAvailable, setSlotsAvailable] = useState('50');
+    const [urgencyEnabled, setUrgencyEnabled] = useState(true);
+
+    // Ride Reimbursement Config
+    const [maxRideAmount, setMaxRideAmount] = useState('200');
+    const [includeDiscount, setIncludeDiscount] = useState(true);
+    const [discountWithRide, setDiscountWithRide] = useState('10');
+
+    // Combo Deal Config
+    const [originalPrice, setOriginalPrice] = useState('500');
+    const [comboPrice, setComboPrice] = useState('350');
+    const [comboItems, setComboItems] = useState('Coffee + Sandwich + Dessert');
+
+    // Campaign Image
+    const [campaignImage, setCampaignImage] = useState<string | null>(null);
+
+    const STYLES = getStyles(theme);
+
+    // Image Upload Handler
+    const handleImageUpload = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Needed', 'Please allow photo library access to upload campaign images.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [16, 9],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setCampaignImage(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            Alert.alert('Error', 'Failed to pick image. Please try again.');
         }
+    };
+
+    const getFilteredTemplates = () => {
+        if (activeTab === 'All') return templates;
+        const catMap: Record<DisplayCategory, string> = {
+            'All': '',
+            'Loyalty': 'loyalty',
+            'Growth': 'acquisition',
+            'Retention': 'retention'
+        };
+        return templates.filter(t => t.category === catMap[activeTab]);
+    };
+
+    const handleTemplateSelect = (template: CampaignTemplate) => {
+        startCampaignFromTemplate(template.id, merchantId);
+        setTitle(template.name);
+        setDescription(template.description);
+        setSelectedType(template.defaultConfig.type || 'discount');
+
+        // Set defaults based on template
+        if (template.defaultConfig.offer?.discountPercent) {
+            setDiscountPercent(template.defaultConfig.offer.discountPercent.toString());
+        }
+        if (template.defaultConfig.offer?.rideReimbursement) {
+            setMaxRideAmount(template.defaultConfig.offer.rideReimbursement.toString());
+        }
+        if (template.defaultConfig.offer?.bonusStamps) {
+            setBonusStamps(template.defaultConfig.offer.bonusStamps.toString());
+        }
+
         setStep(2);
     };
 
-    const pickImage = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            handleImageUpload(result.assets[0].uri);
-        }
-    };
-
-    const handleImageUpload = async (uri: string) => {
-        setUploading(true);
-        try {
-            const imageUrl = await api.uploadImage(uri);
-            setImages(prev => [...prev, imageUrl]);
-        } catch (error) {
-            Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
-            console.error(error);
-        } finally {
-            setUploading(false);
-        }
-    };
-
-    const removeImage = (index: number) => {
-        setImages(prev => prev.filter((_, i) => i !== index));
+    const handleCustomCampaign = () => {
+        setTitle('My Custom Campaign');
+        setDescription('Create your own unique offer');
+        setSelectedType('custom');
+        setStep(2);
     };
 
     const handleLaunch = () => {
-        if (!campaignName.trim()) {
-            Alert.alert('Error', 'Please enter a campaign name');
-            return;
+        const offerConfig: any = {};
+
+        if (selectedType === 'stamp_card') {
+            offerConfig.stampReward = parseInt(stampsRequired);
+            offerConfig.bonusStamps = parseInt(bonusStamps);
+        } else if (selectedType === 'discount' || selectedType === 'custom') {
+            offerConfig.discountPercent = parseInt(discountPercent);
+        } else if (selectedType === 'flash_deal') {
+            offerConfig.discountPercent = parseInt(discountPercent);
+        } else if (selectedType === 'ride_reimbursement') {
+            offerConfig.rideReimbursement = parseInt(maxRideAmount);
+            if (includeDiscount) {
+                offerConfig.discountPercent = parseInt(discountWithRide);
+            }
+        } else if (selectedType === 'combo') {
+            offerConfig.discountPercent = Math.round((1 - parseInt(comboPrice) / parseInt(originalPrice)) * 100);
         }
 
         updateDraftCampaign({
-            name: campaignName,
-            type: campaignType,
-            targeting: {
-                audience,
-                location: 'all',
-                timing: 'always',
-            },
-            budget: {
-                total: parseInt(budget) || 5000,
-                spent: 0,
-            },
-            offer: {
-                discountPercent: campaignType === 'discount' || campaignType === 'combo'
-                    ? parseInt(discountPercent) : undefined,
-                rideReimbursement: campaignType === 'ride_reimbursement' || campaignType === 'combo'
-                    ? parseInt(rideReimbursement) : undefined,
-            },
-            // Frontend Deal Fields
+            name: title,
             description,
-            consumerCategory,
-            maxRedemptions: parseInt(maxRedemptions) || 100,
-            pricing: {
-                originalPrice: parseInt(originalPrice) || 0,
-                discountedPrice: parseInt(originalPrice) * (1 - (parseInt(discountPercent) || 0) / 100),
-            },
-            images: ['https://via.placeholder.com/300'], // Placeholder for now
-            termsAndConditions: ['Valid at all locations'], // Default
+            offer: offerConfig
         });
 
         launchCampaign();
-        Alert.alert('Success', 'Campaign launched successfully!');
+        Alert.alert("🚀 Campaign Launched!", "Your promotion is now live and visible to Utopia users.");
         handleClose();
-    };
-
-    const handleSaveDraft = () => {
-        updateDraftCampaign({
-            name: campaignName,
-            type: campaignType,
-            targeting: { audience, location: 'all', timing: 'always' },
-            budget: { total: parseInt(budget) || 5000, spent: 0 },
-            offer: {
-                discountPercent: parseInt(discountPercent),
-                rideReimbursement: parseInt(rideReimbursement),
-            },
-            // Frontend Deal Fields
-            description,
-            consumerCategory,
-            maxRedemptions: parseInt(maxRedemptions) || 100,
-            pricing: {
-                originalPrice: parseInt(originalPrice) || 0,
-                discountedPrice: parseInt(originalPrice) * (1 - (parseInt(discountPercent) || 0) / 100),
-            },
-            images: ['https://via.placeholder.com/300'],
-            termsAndConditions: ['Valid at all locations'],
-        });
-        saveDraft();
-        Alert.alert('Success', 'Campaign saved as draft');
-        handleClose();
-    };
-
-    const handleSaveTemplate = () => {
-        if (!campaignName.trim()) {
-            Alert.alert('Error', 'Please enter a name for the template');
-            return;
-        }
-
-        Alert.prompt(
-            'Save as Template',
-            'Enter a name for this template:',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Save',
-                    onPress: (name?: string) => {
-                        const templateName = name || campaignName;
-                        createTemplate({
-                            name: templateName,
-                            category: 'acquisition', // Default
-                            difficulty: 'simple',
-                            description: description || 'Custom template',
-                            estimatedROI: 0,
-                            successRate: 0,
-                            icon: 'rocket',
-                            defaultConfig: {
-                                type: campaignType,
-                                targeting: { audience, location: 'all', timing: 'always' },
-                                budget: { total: parseInt(budget) || 5000, spent: 0 },
-                                offer: {
-                                    discountPercent: parseInt(discountPercent),
-                                    rideReimbursement: parseInt(rideReimbursement),
-                                },
-                            }
-                        });
-                        Alert.alert('Success', 'Template saved successfully!');
-                    }
-                }
-            ],
-            'plain-text',
-            campaignName
-        );
     };
 
     const handleClose = () => {
         setStep(1);
-        setSelectedTemplate(null);
-        setCampaignName('');
-        setAudience('all');
-        setBudget('5000');
-        setDiscountPercent('15');
-        setRideReimbursement('100');
-        onClose();
+        safeClose();
     };
 
-    return (
-        <Modal visible={visible} animationType="slide" transparent={false}>
-            <View style={styles.container}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>
-                            {step === 1 ? 'Choose Template' : 'Configure Campaign'}
-                        </Text>
-                        <Text style={styles.headerSubtitle}>Step {step} of 2</Text>
-                    </View>
-                    <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                        <X size={24} color={theme.colors.text} />
+    // =========================================================================
+    // STEP 1: Template Gallery
+    // =========================================================================
+    const renderTemplateStep = () => (
+        <View style={STYLES.stepContainer}>
+            <Text style={STYLES.heading}>Create a Promotion</Text>
+            <Text style={STYLES.subheading}>Choose a template or start from scratch</Text>
+
+            {/* Fixed Tabs - No cutoff */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={STYLES.tabScrollContent}
+            >
+                {(['All', 'Loyalty', 'Growth', 'Retention'] as DisplayCategory[]).map(tab => (
+                    <TouchableOpacity
+                        key={tab}
+                        style={[STYLES.tab, activeTab === tab && STYLES.activeTab]}
+                        onPress={() => setActiveTab(tab)}
+                    >
+                        <Text style={[STYLES.tabText, activeTab === tab && STYLES.activeTabText]}>{tab}</Text>
                     </TouchableOpacity>
-                </View>
+                ))}
+            </ScrollView>
 
-                <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                    {step === 1 ? (
-                        // Step 1: Template Selection
-                        <View>
-                            <Text style={styles.sectionTitle}>Quick Start Templates</Text>
-                            <Text style={styles.sectionSubtitle}>
-                                Choose a proven template to get started quickly
-                            </Text>
-
-                            {templates.map(template => (
-                                <TouchableOpacity
-                                    key={template.id}
-                                    style={styles.templateCard}
-                                    onPress={() => handleTemplateSelect(template.id)}>
-                                    <View style={styles.templateHeader}>
-                                        <View
-                                            style={[
-                                                styles.templateIcon,
-                                                { backgroundColor: `${getCategoryColor(template.category)}20` },
-                                            ]}>
-                                            <Rocket size={24} color={getCategoryColor(template.category)} />
-                                        </View>
-                                        <View style={styles.templateInfo}>
-                                            <Text style={styles.templateName}>{template.name}</Text>
-                                            <Text style={styles.templateCategory}>
-                                                {template.category.toUpperCase()} • {template.difficulty.toUpperCase()}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <Text style={styles.templateDescription}>{template.description}</Text>
-                                    <View style={styles.templateMetrics}>
-                                        <View style={styles.templateMetric}>
-                                            <TrendingUp size={16} color="#2ECC71" />
-                                            <Text style={styles.templateMetricText}>{template.estimatedROI}% ROI</Text>
-                                        </View>
-                                        <View style={styles.templateMetric}>
-                                            <Users size={16} color={theme.colors.primary} />
-                                            <Text style={styles.templateMetricText}>
-                                                {template.successRate}% success rate
-                                            </Text>
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={STYLES.gridContainer}>
+                {/* Custom Campaign Card - First */}
+                <TouchableOpacity style={STYLES.customCard} onPress={handleCustomCampaign}>
+                    <LinearGradient
+                        colors={[theme.colors.primary + '30', theme.colors.primary + '10']}
+                        style={STYLES.customGradient}
+                    >
+                        <View style={STYLES.customIconBox}>
+                            <Plus size={32} color={theme.colors.primary} />
                         </View>
-                    ) : (
-                        // Step 2: Configuration
-                        <View>
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Campaign Name</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={campaignName}
-                                    onChangeText={setCampaignName}
-                                    placeholder="e.g., Weekend Special 20% Off"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                />
+                        <Text style={STYLES.customTitle}>Create Custom</Text>
+                        <Text style={STYLES.customDesc}>Build your own unique promotion from scratch</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Template Cards */}
+                {getFilteredTemplates().map(template => (
+                    <TouchableOpacity
+                        key={template.id}
+                        style={STYLES.templateCard}
+                        onPress={() => handleTemplateSelect(template)}
+                    >
+                        <View style={STYLES.cardContent}>
+                            <View style={STYLES.cardHeader}>
+                                <View style={[STYLES.iconBox, { backgroundColor: getCategoryColor(template.category) + '20' }]}>
+                                    {getIcon(template.icon, getCategoryColor(template.category))}
+                                </View>
+                                {template.difficulty === 'advanced' && (
+                                    <View style={STYLES.proBadge}>
+                                        <Crown size={10} color="#FFF" />
+                                        <Text style={STYLES.proBadgeText}>PRO</Text>
+                                    </View>
+                                )}
                             </View>
 
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Description</Text>
-                                <TextInput
-                                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                                    value={description}
-                                    onChangeText={setDescription}
-                                    placeholder="Describe your offer..."
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                    multiline
-                                />
-                            </View>
+                            <Text style={STYLES.templateTitle}>{template.name}</Text>
+                            <Text style={STYLES.templateDesc} numberOfLines={2}>{template.description}</Text>
 
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Campaign Images</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
-                                    {images.map((img, index) => (
-                                        <View key={index} style={styles.imageContainer}>
-                                            <Image source={{ uri: img }} style={styles.uploadedImage} />
-                                            <TouchableOpacity
-                                                style={styles.removeImageButton}
-                                                onPress={() => removeImage(index)}
-                                            >
-                                                <X size={12} color="#FFF" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                    <TouchableOpacity
-                                        style={styles.addImageButton}
-                                        onPress={pickImage}
-                                        disabled={uploading}
-                                    >
-                                        {uploading ? (
-                                            <ActivityIndicator color={theme.colors.primary} />
-                                        ) : (
-                                            <>
-                                                <Upload size={24} color={theme.colors.primary} />
-                                                <Text style={styles.addImageText}>Upload</Text>
-                                            </>
-                                        )}
-                                    </TouchableOpacity>
-                                </ScrollView>
+                            <View style={STYLES.metricsRow}>
+                                <View style={STYLES.metric}>
+                                    <TrendingUp size={14} color="#16A34A" />
+                                    <Text style={STYLES.metricText}>{template.estimatedROI}% ROI</Text>
+                                </View>
+                                <View style={STYLES.metric}>
+                                    <Users size={14} color={theme.colors.primary} />
+                                    <Text style={STYLES.metricText}>{template.successRate}%</Text>
+                                </View>
                             </View>
+                        </View>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+    );
 
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Category</Text>
-                                <View style={styles.optionsRow}>
-                                    {BUSINESS_CATEGORIES.map(cat => (
+    // =========================================================================
+    // STEP 2: Unique Configurators per Type
+    // =========================================================================
+    const renderConfigStep = () => {
+        const renderTypeSpecificConfig = () => {
+            switch (selectedType) {
+                case 'stamp_card':
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <Award size={20} color={theme.colors.primary} />
+                                <Text style={STYLES.sectionTitle}>Stamp Card Settings</Text>
+                            </View>
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Stamps to Complete</Text>
+                                    <View style={STYLES.stepper}>
                                         <TouchableOpacity
-                                            key={cat}
-                                            style={[styles.optionChip, consumerCategory === cat && styles.optionChipActive]}
-                                            onPress={() => setConsumerCategory(cat)}>
-                                            <Text
-                                                style={[
-                                                    styles.optionChipText,
-                                                    consumerCategory === cat && styles.optionChipTextActive,
-                                                ]}>
-                                                {cat}
-                                            </Text>
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setStampsRequired(Math.max(3, parseInt(stampsRequired) - 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
                                         </TouchableOpacity>
-                                    ))}
+                                        <Text style={STYLES.stepperValue}>{stampsRequired}</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setStampsRequired((parseInt(stampsRequired) + 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <View style={STYLES.divider} />
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Reward Item</Text>
+                                    <TextInput
+                                        style={STYLES.input}
+                                        value={rewardItem}
+                                        onChangeText={setRewardItem}
+                                        placeholder="e.g. Free Coffee"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
+                                </View>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Bonus Stamps (Weekend)</Text>
+                                    <View style={STYLES.stepper}>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setBonusStamps(Math.max(0, parseInt(bonusStamps) - 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
+                                        </TouchableOpacity>
+                                        <Text style={STYLES.stepperValue}>{bonusStamps}</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setBonusStamps((parseInt(bonusStamps) + 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
+                        </>
+                    );
 
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Target Audience</Text>
-                                <View style={styles.optionsRow}>
-                                    {(['all', 'new', 'returning', 'high_value', 'at_risk'] as AudienceType[]).map(
-                                        aud => (
-                                            <TouchableOpacity
-                                                key={aud}
-                                                style={[styles.optionChip, audience === aud && styles.optionChipActive]}
-                                                onPress={() => setAudience(aud)}>
-                                                <Text
-                                                    style={[
-                                                        styles.optionChipText,
-                                                        audience === aud && styles.optionChipTextActive,
-                                                    ]}>
-                                                    {aud.replace('_', ' ').toUpperCase()}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )
-                                    )}
+                case 'discount':
+                case 'custom':
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <Percent size={20} color={theme.colors.primary} />
+                                <Text style={STYLES.sectionTitle}>Discount Settings</Text>
+                            </View>
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Discount Percentage</Text>
+                                    <View style={STYLES.stepper}>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.max(5, parseInt(discountPercent) - 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
+                                        </TouchableOpacity>
+                                        <Text style={STYLES.stepperValue}>{discountPercent}%</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.min(50, parseInt(discountPercent) + 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <View style={STYLES.divider} />
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Minimum Spend (₹)</Text>
+                                    <TextInput
+                                        style={STYLES.input}
+                                        value={minSpend}
+                                        onChangeText={setMinSpend}
+                                        keyboardType="numeric"
+                                        placeholder="0"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
+                                </View>
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Maximum Discount (₹)</Text>
+                                    <TextInput
+                                        style={STYLES.input}
+                                        value={maxDiscount}
+                                        onChangeText={setMaxDiscount}
+                                        keyboardType="numeric"
+                                        placeholder="500"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
                                 </View>
                             </View>
+                        </>
+                    );
 
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Total Budget (₹)</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={budget}
-                                    onChangeText={setBudget}
-                                    keyboardType="numeric"
-                                    placeholder="5000"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                />
+                case 'flash_deal':
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <Zap size={20} color="#F59E0B" />
+                                <Text style={STYLES.sectionTitle}>Flash Deal Settings</Text>
                             </View>
-
-                            <View style={styles.formSection}>
-                                <Text style={styles.label}>Max Redemptions</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={maxRedemptions}
-                                    onChangeText={setMaxRedemptions}
-                                    keyboardType="numeric"
-                                    placeholder="100"
-                                    placeholderTextColor={theme.colors.textTertiary}
-                                />
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Duration (Hours)</Text>
+                                    <View style={STYLES.stepper}>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDuration(Math.max(1, parseInt(duration) - 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
+                                        </TouchableOpacity>
+                                        <Text style={STYLES.stepperValue}>{duration}h</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDuration(Math.min(24, parseInt(duration) + 1).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <View style={STYLES.divider} />
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Discount</Text>
+                                    <View style={STYLES.stepper}>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.max(10, parseInt(discountPercent) - 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
+                                        </TouchableOpacity>
+                                        <Text style={STYLES.stepperValue}>{discountPercent}%</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.min(80, parseInt(discountPercent) + 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <View style={STYLES.divider} />
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Available Slots</Text>
+                                    <TextInput
+                                        style={STYLES.input}
+                                        value={slotsAvailable}
+                                        onChangeText={setSlotsAvailable}
+                                        keyboardType="numeric"
+                                        placeholder="50"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
+                                </View>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Show Urgency Badge</Text>
+                                    <Switch
+                                        value={urgencyEnabled}
+                                        onValueChange={setUrgencyEnabled}
+                                        trackColor={{ false: theme.colors.surfaceLight, true: theme.colors.primary }}
+                                    />
+                                </View>
                             </View>
+                        </>
+                    );
 
-                            {(campaignType === 'discount' || campaignType === 'combo') && (
-                                <View style={styles.row}>
-                                    <View style={[styles.formSection, { flex: 1, marginRight: 10 }]}>
-                                        <Text style={styles.label}>Original Price (₹)</Text>
+                case 'ride_reimbursement':
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <Car size={20} color="#8B5CF6" />
+                                <Text style={STYLES.sectionTitle}>Ride Reimbursement</Text>
+                            </View>
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Maximum Ride Amount (₹)</Text>
+                                    <TextInput
+                                        style={STYLES.input}
+                                        value={maxRideAmount}
+                                        onChangeText={setMaxRideAmount}
+                                        keyboardType="numeric"
+                                        placeholder="200"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
+                                </View>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Include Store Discount</Text>
+                                    <Switch
+                                        value={includeDiscount}
+                                        onValueChange={setIncludeDiscount}
+                                        trackColor={{ false: theme.colors.surfaceLight, true: theme.colors.primary }}
+                                    />
+                                </View>
+                                {includeDiscount && (
+                                    <>
+                                        <View style={STYLES.divider} />
+                                        <View style={STYLES.configRow}>
+                                            <Text style={STYLES.configLabel}>Additional Discount</Text>
+                                            <View style={STYLES.stepper}>
+                                                <TouchableOpacity
+                                                    style={STYLES.stepperBtn}
+                                                    onPress={() => setDiscountWithRide(Math.max(5, parseInt(discountWithRide) - 5).toString())}
+                                                >
+                                                    <Text style={STYLES.stepperText}>−</Text>
+                                                </TouchableOpacity>
+                                                <Text style={STYLES.stepperValue}>{discountWithRide}%</Text>
+                                                <TouchableOpacity
+                                                    style={STYLES.stepperBtn}
+                                                    onPress={() => setDiscountWithRide(Math.min(30, parseInt(discountWithRide) + 5).toString())}
+                                                >
+                                                    <Text style={STYLES.stepperText}>+</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    </>
+                                )}
+                            </View>
+                        </>
+                    );
+
+                case 'combo':
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <ShoppingBag size={20} color="#EC4899" />
+                                <Text style={STYLES.sectionTitle}>Combo Deal Settings</Text>
+                            </View>
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.formGroup}>
+                                    <Text style={STYLES.label}>Items Included</Text>
+                                    <TextInput
+                                        style={[STYLES.input, { height: 60 }]}
+                                        value={comboItems}
+                                        onChangeText={setComboItems}
+                                        placeholder="e.g. Coffee + Sandwich + Dessert"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                        multiline
+                                    />
+                                </View>
+                                <View style={STYLES.priceRow}>
+                                    <View style={STYLES.priceInput}>
+                                        <Text style={STYLES.label}>Original Price</Text>
                                         <TextInput
-                                            style={styles.input}
+                                            style={STYLES.input}
                                             value={originalPrice}
                                             onChangeText={setOriginalPrice}
                                             keyboardType="numeric"
@@ -423,291 +574,345 @@ export default function CampaignCreatorModal({
                                             placeholderTextColor={theme.colors.textTertiary}
                                         />
                                     </View>
-                                    <View style={[styles.formSection, { flex: 1 }]}>
-                                        <Text style={styles.label}>Discount (%)</Text>
+                                    <ArrowRight size={20} color={theme.colors.textSecondary} style={{ marginTop: 30 }} />
+                                    <View style={STYLES.priceInput}>
+                                        <Text style={STYLES.label}>Combo Price</Text>
                                         <TextInput
-                                            style={styles.input}
-                                            value={discountPercent}
-                                            onChangeText={setDiscountPercent}
+                                            style={STYLES.input}
+                                            value={comboPrice}
+                                            onChangeText={setComboPrice}
                                             keyboardType="numeric"
-                                            placeholder="15"
+                                            placeholder="350"
                                             placeholderTextColor={theme.colors.textTertiary}
                                         />
                                     </View>
                                 </View>
-                            )}
-
-                            {(campaignType === 'ride_reimbursement' || campaignType === 'combo') && (
-                                <View style={styles.formSection}>
-                                    <Text style={styles.label}>Ride Reimbursement (₹)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={rideReimbursement}
-                                        onChangeText={setRideReimbursement}
-                                        keyboardType="numeric"
-                                        placeholder="100"
-                                        placeholderTextColor={theme.colors.textTertiary}
-                                    />
+                                <View style={STYLES.savingsBox}>
+                                    <Text style={STYLES.savingsText}>
+                                        Customers save ₹{parseInt(originalPrice) - parseInt(comboPrice)} ({Math.round((1 - parseInt(comboPrice) / parseInt(originalPrice)) * 100)}% off)
+                                    </Text>
                                 </View>
-                            )}
+                            </View>
+                        </>
+                    );
+
+                default:
+                    return (
+                        <>
+                            <View style={STYLES.sectionHeader}>
+                                <Target size={20} color={theme.colors.primary} />
+                                <Text style={STYLES.sectionTitle}>Campaign Settings</Text>
+                            </View>
+                            <View style={STYLES.configCard}>
+                                <View style={STYLES.configRow}>
+                                    <Text style={STYLES.configLabel}>Discount</Text>
+                                    <View style={STYLES.stepper}>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.max(5, parseInt(discountPercent) - 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>−</Text>
+                                        </TouchableOpacity>
+                                        <Text style={STYLES.stepperValue}>{discountPercent}%</Text>
+                                        <TouchableOpacity
+                                            style={STYLES.stepperBtn}
+                                            onPress={() => setDiscountPercent(Math.min(50, parseInt(discountPercent) + 5).toString())}
+                                        >
+                                            <Text style={STYLES.stepperText}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+                        </>
+                    );
+            }
+        };
+
+        return (
+            <ScrollView style={STYLES.stepContainer} showsVerticalScrollIndicator={false}>
+                <Text style={STYLES.heading}>Configure Campaign</Text>
+
+                {/* Basic Info */}
+                <View style={STYLES.sectionHeader}>
+                    <Tag size={20} color={theme.colors.textSecondary} />
+                    <Text style={STYLES.sectionTitle}>Basic Information</Text>
+                </View>
+                <View style={STYLES.configCard}>
+                    <View style={STYLES.formGroup}>
+                        <Text style={STYLES.label}>Campaign Title</Text>
+                        <TextInput
+                            style={STYLES.input}
+                            value={title}
+                            onChangeText={setTitle}
+                            placeholder="Give your campaign a name"
+                            placeholderTextColor={theme.colors.textTertiary}
+                        />
+                    </View>
+                    <View style={STYLES.formGroup}>
+                        <Text style={STYLES.label}>Description</Text>
+                        <TextInput
+                            style={[STYLES.input, { height: 80 }]}
+                            value={description}
+                            onChangeText={setDescription}
+                            placeholder="Describe your offer..."
+                            placeholderTextColor={theme.colors.textTertiary}
+                            multiline
+                        />
+                    </View>
+                </View>
+
+                {/* Campaign Image */}
+                <View style={STYLES.sectionHeader}>
+                    <Camera size={20} color={theme.colors.primary} />
+                    <Text style={STYLES.sectionTitle}>Campaign Image</Text>
+                </View>
+                <TouchableOpacity style={STYLES.imageUploadCard} onPress={handleImageUpload}>
+                    {campaignImage ? (
+                        <View style={STYLES.imagePreviewContainer}>
+                            <Image source={{ uri: campaignImage }} style={STYLES.imagePreview} />
+                            <TouchableOpacity
+                                style={STYLES.imageRemoveBtn}
+                                onPress={() => setCampaignImage(null)}
+                            >
+                                <X size={16} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={STYLES.imageUploadPlaceholder}>
+                            <ImageIcon size={32} color={theme.colors.textSecondary} />
+                            <Text style={STYLES.imageUploadText}>Tap to add image</Text>
+                            <Text style={STYLES.imageUploadHint}>16:9 recommended • Shows in user app</Text>
                         </View>
                     )}
-                </ScrollView>
+                </TouchableOpacity>
 
-                {/* Footer */}
-                {step === 2 && (
-                    <View style={styles.footer}>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={handleSaveTemplate}>
-                            <Save size={20} color={theme.colors.text} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={handleSaveDraft}>
-                            <Text style={styles.secondaryButtonText}>Draft</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.primaryButton} onPress={handleLaunch}>
-                            <Rocket size={20} color="#FFFFFF" />
-                            <Text style={styles.primaryButtonText}>Launch</Text>
-                        </TouchableOpacity>
+                {/* Type-Specific Config */}
+                {renderTypeSpecificConfig()}
+
+                {/* Preview */}
+                <View style={STYLES.sectionHeader}>
+                    <Sparkles size={20} color={theme.colors.primary} />
+                    <Text style={STYLES.sectionTitle}>How Users Will See It</Text>
+                </View>
+                <View style={STYLES.previewCard}>
+                    <View style={STYLES.previewHeader}>
+                        <View style={[STYLES.previewIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                            {getTypeIcon(selectedType, theme.colors.primary)}
+                        </View>
+                        <View style={STYLES.previewInfo}>
+                            <Text style={STYLES.previewTitle}>{title || 'Campaign Title'}</Text>
+                            <Text style={STYLES.previewDesc} numberOfLines={2}>{description || 'Campaign description'}</Text>
+                        </View>
                     </View>
-                )}
+                    <View style={STYLES.previewBadges}>
+                        {selectedType === 'stamp_card' && (
+                            <View style={STYLES.previewBadge}>
+                                <Award size={12} color={theme.colors.primary} />
+                                <Text style={STYLES.previewBadgeText}>{stampsRequired} stamps → {rewardItem}</Text>
+                            </View>
+                        )}
+                        {(selectedType === 'discount' || selectedType === 'custom') && (
+                            <View style={STYLES.previewBadge}>
+                                <Percent size={12} color="#16A34A" />
+                                <Text style={STYLES.previewBadgeText}>{discountPercent}% OFF</Text>
+                            </View>
+                        )}
+                        {selectedType === 'flash_deal' && (
+                            <>
+                                <View style={[STYLES.previewBadge, { backgroundColor: '#FEF3C7' }]}>
+                                    <Zap size={12} color="#F59E0B" />
+                                    <Text style={[STYLES.previewBadgeText, { color: '#F59E0B' }]}>FLASH</Text>
+                                </View>
+                                <View style={STYLES.previewBadge}>
+                                    <Timer size={12} color={theme.colors.primary} />
+                                    <Text style={STYLES.previewBadgeText}>{duration}h only</Text>
+                                </View>
+                            </>
+                        )}
+                        {selectedType === 'ride_reimbursement' && (
+                            <View style={STYLES.previewBadge}>
+                                <Car size={12} color="#8B5CF6" />
+                                <Text style={STYLES.previewBadgeText}>Free ride up to ₹{maxRideAmount}</Text>
+                            </View>
+                        )}
+                        {selectedType === 'combo' && (
+                            <View style={STYLES.previewBadge}>
+                                <ShoppingBag size={12} color="#EC4899" />
+                                <Text style={STYLES.previewBadgeText}>₹{comboPrice} (Save ₹{parseInt(originalPrice) - parseInt(comboPrice)})</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                <View style={{ height: 100 }} />
+            </ScrollView>
+        );
+    };
+
+    return (
+        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+            <View style={STYLES.container}>
+                {/* Header */}
+                <View style={STYLES.header}>
+                    <TouchableOpacity onPress={step === 1 ? handleClose : () => setStep(1)} style={STYLES.headerBtn}>
+                        {step === 1 ? (
+                            <X size={24} color={theme.colors.text} />
+                        ) : (
+                            <ArrowLeft size={24} color={theme.colors.text} />
+                        )}
+                    </TouchableOpacity>
+                    <Text style={STYLES.headerTitle}>{step === 1 ? 'Create Promotion' : 'Configure'}</Text>
+                    {step === 2 ? (
+                        <TouchableOpacity onPress={handleLaunch} style={STYLES.launchBtn}>
+                            <Text style={STYLES.launchText}>Launch</Text>
+                            <Rocket size={16} color="#FFF" />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={{ width: 80 }} />
+                    )}
+                </View>
+
+                {step === 1 ? renderTemplateStep() : renderConfigStep()}
             </View>
         </Modal>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
+// Helpers
+const getCategoryColor = (cat: string) => {
+    switch (cat) {
+        case 'acquisition': return '#3B82F6';
+        case 'retention': return '#10B981';
+        case 'loyalty': return '#8B5CF6';
+        default: return '#F59E0B';
+    }
+};
+
+const getIcon = (name: string, color: string) => {
+    switch (name) {
+        case 'rocket': return <Rocket size={24} color={color} />;
+        case 'calendar': return <Clock size={24} color={color} />;
+        case 'crown': return <Crown size={24} color={color} />;
+        case 'refresh': return <RefreshCw size={24} color={color} />;
+        case 'zap': return <Zap size={24} color={color} />;
+        case 'award': return <Award size={24} color={color} />;
+        case 'clock': return <Timer size={24} color={color} />;
+        default: return <Target size={24} color={color} />;
+    }
+};
+
+const getTypeIcon = (type: CampaignType | 'custom', color: string) => {
+    switch (type) {
+        case 'stamp_card': return <Award size={24} color={color} />;
+        case 'discount': return <Percent size={24} color={color} />;
+        case 'flash_deal': return <Zap size={24} color="#F59E0B" />;
+        case 'ride_reimbursement': return <Car size={24} color="#8B5CF6" />;
+        case 'combo': return <ShoppingBag size={24} color="#EC4899" />;
+        case 'custom': return <Sparkles size={24} color={color} />;
+        default: return <Target size={24} color={color} />;
+    }
+};
+
+const getStyles = (theme: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.surfaceLight,
     },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: '600',
-        color: theme.colors.text,
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        marginTop: 2,
-    },
-    closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: theme.colors.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    content: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: theme.colors.background,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: theme.colors.text,
-        marginBottom: 8,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        marginBottom: 20,
-    },
-    templateCard: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.surfaceLight,
-    },
-    templateHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    templateIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    templateInfo: {
-        flex: 1,
-    },
-    templateName: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: theme.colors.text,
-        marginBottom: 4,
-    },
-    templateCategory: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-    },
-    templateDescription: {
-        fontSize: 14,
-        color: theme.colors.text,
-        lineHeight: 20,
-        marginBottom: 12,
-    },
-    templateMetrics: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    templateMetric: {
+    headerBtn: { width: 40 },
+    headerTitle: { fontSize: 18, fontFamily: theme.fontFamily.heading, color: theme.colors.text, fontWeight: '600' },
+    launchBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-    },
-    templateMetricText: {
-        fontSize: 13,
-        fontWeight: '500',
-        color: theme.colors.text,
-    },
-    formSection: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: theme.colors.text,
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: 8,
-        padding: 14,
-        fontSize: 16,
-        color: theme.colors.text,
-        borderWidth: 1,
-        borderColor: theme.colors.surfaceLight,
-    },
-    optionsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    optionChip: {
-        paddingHorizontal: 14,
+        backgroundColor: theme.colors.primary,
+        paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
+    },
+    launchText: { fontSize: 14, color: '#FFF', fontWeight: '600' },
+
+    stepContainer: { flex: 1, paddingTop: 20 },
+    heading: { fontSize: 28, fontFamily: theme.fontFamily.heading, color: theme.colors.text, marginBottom: 8, paddingHorizontal: 20 },
+    subheading: { fontSize: 16, color: theme.colors.textSecondary, marginBottom: 24, fontFamily: theme.fontFamily.primary, paddingHorizontal: 20 },
+
+    // Tabs - Fixed no cutoff
+    tabScrollContent: { paddingHorizontal: 20, paddingBottom: 16, gap: 10, flexDirection: 'row' },
+    tab: {
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        borderRadius: 24,
         backgroundColor: theme.colors.surface,
         borderWidth: 1,
         borderColor: theme.colors.surfaceLight,
+        flexShrink: 0,
     },
-    optionChipActive: {
-        backgroundColor: `${theme.colors.primary}20`,
-        borderColor: theme.colors.primary,
-    },
-    optionChipText: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: theme.colors.textSecondary,
-    },
-    optionChipTextActive: {
-        color: theme.colors.primary,
-        fontWeight: '600',
-    },
-    footer: {
-        flexDirection: 'row',
-        padding: 20,
-        gap: 12,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.surfaceLight,
-        backgroundColor: theme.colors.background,
-    },
-    secondaryButton: {
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        backgroundColor: theme.colors.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.surfaceLight,
-    },
-    secondaryButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: theme.colors.text,
-    },
-    primaryButton: {
-        flex: 1,
-        flexDirection: 'row',
-        paddingVertical: 14,
-        borderRadius: 12,
-        backgroundColor: theme.colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    primaryButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    // Image Upload Styles
-    imageScroll: {
-        flexDirection: 'row',
-        marginBottom: 8,
-    },
-    imageContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 12,
-        marginRight: 10,
-        position: 'relative',
-    },
-    uploadedImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 12,
-    },
-    removeImageButton: {
-        position: 'absolute',
-        top: -5,
-        right: -5,
-        backgroundColor: theme.colors.error || '#EF4444',
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#FFF',
-    },
-    addImageButton: {
-        width: 100,
-        height: 100,
-        borderRadius: 12,
-        backgroundColor: theme.colors.surface,
-        borderWidth: 1,
-        borderColor: theme.colors.surfaceLight,
-        borderStyle: 'dashed',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    addImageText: {
-        fontSize: 12,
-        color: theme.colors.primary,
-        fontWeight: '500',
-    },
+    activeTab: { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
+    tabText: { color: theme.colors.text, fontWeight: '600', fontSize: 13, flexShrink: 0 },
+    activeTabText: { color: theme.colors.background },
+
+
+    // Custom Campaign Card
+    customCard: { marginBottom: 16, marginHorizontal: 20, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: theme.colors.primary, borderStyle: 'dashed' },
+    customGradient: { padding: 24, alignItems: 'center' },
+    customIconBox: { width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary + '20', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    customTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text, marginBottom: 4 },
+    customDesc: { fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center' },
+
+    // Template Cards
+    gridContainer: { paddingBottom: 40, paddingHorizontal: 20 },
+    templateCard: { marginBottom: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.surfaceLight, backgroundColor: theme.colors.surface },
+    cardContent: { padding: 20 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+    iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#F59E0B', borderRadius: 6 },
+    proBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+    templateTitle: { fontSize: 18, fontWeight: '700', marginBottom: 6, color: theme.colors.text },
+    templateDesc: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 16, lineHeight: 20 },
+    metricsRow: { flexDirection: 'row', gap: 16 },
+    metric: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    metricText: { fontSize: 12, fontWeight: '600', color: theme.colors.text },
+
+    // Config Step
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24, marginBottom: 12 },
+    sectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+    configCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight },
+    configRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+    configLabel: { fontSize: 15, color: theme.colors.text },
+    divider: { height: 1, backgroundColor: theme.colors.surfaceLight, marginVertical: 12 },
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    stepperBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.surfaceLight, justifyContent: 'center', alignItems: 'center' },
+    stepperText: { fontSize: 20, color: theme.colors.text, fontWeight: '600' },
+    stepperValue: { fontSize: 18, fontWeight: '700', color: theme.colors.primary, minWidth: 50, textAlign: 'center' },
+    formGroup: { marginBottom: 16 },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: theme.colors.text },
+    input: { backgroundColor: theme.colors.background, borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight, color: theme.colors.text },
+    priceRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    priceInput: { flex: 1 },
+    savingsBox: { marginTop: 12, padding: 12, backgroundColor: '#10B98120', borderRadius: 8 },
+    savingsText: { fontSize: 14, color: '#10B981', fontWeight: '600', textAlign: 'center' },
+
+    // Preview
+    previewCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: theme.colors.surfaceLight },
+    previewHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+    previewIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    previewInfo: { flex: 1 },
+    previewTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 4 },
+    previewDesc: { fontSize: 13, color: theme.colors.textSecondary, lineHeight: 18 },
+    previewBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    previewBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.colors.surfaceLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    previewBadgeText: { fontSize: 12, fontWeight: '600', color: theme.colors.text },
+
+    // Image Upload
+    imageUploadCard: { backgroundColor: theme.colors.surface, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.surfaceLight, marginBottom: 8 },
+    imagePreviewContainer: { width: '100%', height: 180, position: 'relative' },
+    imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
+    imageRemoveBtn: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+    imageUploadPlaceholder: { padding: 32, alignItems: 'center' },
+    imageUploadText: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginTop: 12 },
+    imageUploadHint: { fontSize: 12, color: theme.colors.textTertiary, marginTop: 4 },
 });

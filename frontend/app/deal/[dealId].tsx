@@ -8,10 +8,13 @@ import {
     Image,
     Alert,
     ActivityIndicator,
+    Share,
+    Linking,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Heart, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Heart, Share2, Navigation } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Sharing from 'expo-sharing';
 import { useAppTheme } from '@/store/themeStore';
@@ -46,7 +49,7 @@ export default function DealDetailsScreen() {
             }
 
             // Check if user has already claimed this deal
-            const claimedResponse = await userService.getClaimedDeals();
+            const claimedResponse = await userService.getClaimedDeals({ skipGlobalAuthHandler: true });
             if (claimedResponse.data) {
                 const claimedDeal = claimedResponse.data.find(
                     (claim: any) => claim.deal._id === dealId
@@ -58,7 +61,7 @@ export default function DealDetailsScreen() {
             }
 
             // Check if deal is favorited
-            const favoritesResponse = await dealsService.getFavorites();
+            const favoritesResponse = await dealsService.getFavorites({ skipGlobalAuthHandler: true });
             if (favoritesResponse.data) {
                 const isFav = favoritesResponse.data.some(deal => deal._id === dealId);
                 setIsFavorited(isFav);
@@ -125,21 +128,48 @@ export default function DealDetailsScreen() {
     const handleShare = async () => {
         if (!deal) return;
         try {
-            const isAvailable = await Sharing.isAvailableAsync();
-            if (isAvailable) {
-                Alert.alert(
-                    'Share Deal',
-                    `${deal.title} - ${deal.discountPercentage}% OFF! Save ₹${deal.originalPrice - deal.discountedPrice}`,
-                    [
-                        { text: 'OK', style: 'cancel' }
-                    ]
-                );
-            } else {
-                Alert.alert('Sharing not available', 'Sharing is not available on this device');
+            const result = await Share.share({
+                message: `${deal.title} - ${deal.discountPercentage}% OFF! Save ₹${deal.originalPrice - deal.discountedPrice} at ${deal.merchantId?.name}. Check it out on Utopia!`,
+                title: 'Check out this deal!',
+                url: `https://utopia.app/deal/${deal._id}` // Example URL
+            });
+
+            if (result.action === Share.sharedAction) {
+                if (result.activityType) {
+                    // shared with activity type of result.activityType
+                } else {
+                    // shared
+                }
+            } else if (result.action === Share.dismissedAction) {
+                // dismissed
             }
         } catch (error) {
             console.log('Share error:', error);
+            Alert.alert('Error', 'Failed to share deal');
         }
+    };
+
+    const handleGetDirections = () => {
+        // Use merchant location if available, otherwise search by merchant name
+        const merchantName = deal?.merchantId?.name || 'Merchant';
+        const merchantLocation = (deal?.merchantId as any)?.location?.coordinates;
+
+        let url: string;
+        if (merchantLocation && merchantLocation.length === 2) {
+            const [lng, lat] = merchantLocation;
+            const destination = `${lat},${lng}`;
+            url = Platform.select({
+                ios: `maps://app?daddr=${destination}`,
+                android: `google.navigation:q=${destination}`,
+            }) || `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+        } else {
+            // Fallback: search by merchant name
+            url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(merchantName)}`;
+        }
+
+        Linking.openURL(url).catch(() => {
+            Alert.alert('Error', 'Could not open maps');
+        });
     };
 
     if (loading) {
@@ -237,6 +267,12 @@ export default function DealDetailsScreen() {
                             </View>
                             <Text style={styles.redemptionCode}>{redemptionCode}</Text>
                             <Text style={styles.qrNote}>Status: Pending Redemption</Text>
+
+                            {/* Directions Button */}
+                            <TouchableOpacity style={styles.directionsButton} onPress={handleGetDirections}>
+                                <Navigation size={20} color="#8B5CF6" />
+                                <Text style={styles.directionsText}>Get Directions</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
@@ -438,6 +474,22 @@ const getStyles = (theme: any) =>
         claimButtonText: {
             color: theme.colors.background,
             fontSize: 18,
+            fontWeight: '700',
+        },
+        directionsButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            marginTop: 16,
+            backgroundColor: 'rgba(139, 92, 246, 0.15)',
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            borderRadius: 12,
+        },
+        directionsText: {
+            color: '#8B5CF6',
+            fontSize: 14,
             fontWeight: '700',
         },
     });

@@ -318,7 +318,7 @@ const sampleMissions: Mission[] = [
 export const useMissionStore = create<MissionState>()(
   persist(
     (set, get) => ({
-      missions: [],
+      missions: sampleMissions, // Initialize with sample missions for demo
       activeMissions: [],
       completedMissions: [],
       totalPoints: 0,
@@ -327,7 +327,7 @@ export const useMissionStore = create<MissionState>()(
       initializeMissions: async () => {
         try {
           const response = await loyaltyService.getMissions();
-          if (response.data) {
+          if (response.data && response.data.length > 0) {
             // Map backend _id to frontend id
             const mappedMissions = response.data.map((m: any) => ({
               ...m,
@@ -339,19 +339,14 @@ export const useMissionStore = create<MissionState>()(
             }));
             set({ missions: mappedMissions });
           } else {
-            // Fallback if API fails or returns empty
-            const existingMissions = get().missions;
-            if (existingMissions.length === 0) {
-              set({ missions: sampleMissions });
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch missions', error);
-          // Fallback
-          const existingMissions = get().missions;
-          if (existingMissions.length === 0) {
+            // API returned empty array - use sample missions for demo
+            console.log('[MissionStore] Using sample missions for demo');
             set({ missions: sampleMissions });
           }
+        } catch (error) {
+          console.error('Failed to fetch missions, using sample data', error);
+          // Always fallback to sample missions
+          set({ missions: sampleMissions });
         }
       },
 

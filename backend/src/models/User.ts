@@ -2,6 +2,9 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
+    username?: string;
+    referralCode?: string;
+    referredBy?: string;
     email: string;
     phone: string;
     password?: string;
@@ -15,6 +18,7 @@ export interface IUser extends Document {
                 longitude: number;
             };
         };
+        archetype?: string;
         preferences: {
             notifications: boolean;
             locationServices: boolean;
@@ -68,11 +72,28 @@ export interface IUser extends Document {
         status: 'pending' | 'redeemed' | 'expired';
     }>;
     favoritedDeals: mongoose.Types.ObjectId[];
+    createdAt: Date;
+    updatedAt: Date;
     matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
 const UserSchema: Schema = new Schema(
     {
+        username: {
+            type: String,
+            unique: true,
+            sparse: true, // Allows null/undefined values for existing users
+            trim: true,
+            minlength: 3,
+        },
+        referralCode: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
+        referredBy: {
+            type: String,
+        },
         email: {
             type: String,
             required: true,
@@ -106,6 +127,7 @@ const UserSchema: Schema = new Schema(
                     longitude: Number,
                 },
             },
+            archetype: String,
             preferences: {
                 notifications: {
                     type: Boolean,

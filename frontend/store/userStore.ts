@@ -73,7 +73,11 @@ export const useUserStore = create<UserState>()(
                         gamification: {
                             ...state.gamification,
                             xp: user.gamification?.xp || state.gamification.xp,
-                            rank: user.gamification?.rank ? { ...state.gamification.rank, ...user.gamification.rank } as Rank : state.gamification.rank,
+                            rank: user.gamification?.rank ? {
+                                ...state.gamification.rank,
+                                ...user.gamification.rank,
+                                name: user.gamification.rank.displayName || state.gamification.rank.name
+                            } as Rank : state.gamification.rank,
                             streak: user.gamification?.streak ? { ...user.gamification.streak, lastActiveDate: user.gamification.streak.lastActiveDate || new Date().toISOString() } : state.gamification.streak,
                             unlockedFeatures: (user.gamification?.unlockedFeatures as FeatureId[]) || state.gamification.unlockedFeatures,
                             pendingRewards: (user.gamification?.pendingRewards as any) || [],
@@ -185,6 +189,7 @@ export const useUserStore = create<UserState>()(
             },
 
             fetchPendingRewards: async () => {
+                if (!get().user) return; // Auth Guard
                 try {
                     const response = await loyaltyService.getPendingRewards();
                     if (response.data) {
@@ -201,6 +206,7 @@ export const useUserStore = create<UserState>()(
             },
 
             claimReward: async (rewardId: string) => {
+                if (!get().user) return; // Auth Guard
                 try {
                     const response = await loyaltyService.claimXPReward(rewardId);
                     if (response.data) {
@@ -236,6 +242,7 @@ export const useUserStore = create<UserState>()(
             },
 
             fetchGamificationProfile: async () => {
+                if (!get().user) return; // Auth Guard
                 try {
                     const response = await loyaltyService.getGamificationProfile();
                     if (response.data) {
@@ -245,12 +252,7 @@ export const useUserStore = create<UserState>()(
                             gamification: {
                                 ...state.gamification,
                                 xp: xp || state.gamification.xp,
-                                rank: rank ? {
-                                    name: rank.displayName,
-                                    xp: xp.current,
-                                    league: rank.league,
-                                    tier: rank.tier
-                                } as Rank : state.gamification.rank,
+                                rank: rank ? getRankByXP(xp.current) : state.gamification.rank,
                                 streak: streak ? {
                                     current: streak.current,
                                     lastActiveDate: streak.lastActiveDate

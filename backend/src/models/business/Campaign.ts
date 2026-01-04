@@ -5,7 +5,7 @@ export interface ICampaign extends Document {
     name: string;
     type: 'stamp_card' | 'discount' | 'ride_reimbursement' | 'mission' | 'combo';
     category: 'acquisition' | 'retention' | 'reactivation' | 'loyalty';
-    status: 'draft' | 'active' | 'paused' | 'completed';
+    status: 'draft' | 'active' | 'paused' | 'completed' | 'archived';
     budget: {
         total: number;
         spent: number;
@@ -73,7 +73,7 @@ const CampaignSchema: Schema = new Schema(
         },
         status: {
             type: String,
-            enum: ['draft', 'active', 'paused', 'completed'],
+            enum: ['draft', 'active', 'paused', 'completed', 'archived'],
             default: 'draft',
         },
         budget: {

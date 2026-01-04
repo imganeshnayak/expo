@@ -29,11 +29,14 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
             // Get token from header
             token = req.headers.authorization.split(' ')[1];
 
-            // Verify token
-            const decoded = jwt.verify(
-                token,
-                process.env.JWT_SECRET || 'secret'
-            ) as DecodedToken;
+            // Verify token - JWT_SECRET must be set in environment
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                console.error('CRITICAL: JWT_SECRET environment variable is not set');
+                return res.status(500).json({ message: 'Server configuration error' });
+            }
+
+            const decoded = jwt.verify(token, jwtSecret) as DecodedToken;
 
             // Try to find as regular user first
             let user = await User.findById(decoded.id).select('-password');

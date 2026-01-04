@@ -166,12 +166,17 @@ export const claimDeal = async (req: Request, res: Response) => {
         // Generate unique redemption code (for QR)
         const redemptionCode = `${userId.toString().slice(-6)}-${dealId.toString().slice(-6)}-${Date.now().toString().slice(-6)}`;
 
+        // Calculate savings safely
+        const originalPrice = campaign.pricing?.originalPrice || 0;
+        const discountedPrice = campaign.pricing?.discountedPrice || 0;
+        const savings = originalPrice - discountedPrice;
+
         // Add to user's claimed deals
         user.claimedDeals = user.claimedDeals || [];
         user.claimedDeals.push({
             dealId: campaign._id,
             claimedAt: new Date(),
-            savings: campaign.pricing.originalPrice - campaign.pricing.discountedPrice,
+            savings,
             redemptionCode,
             status: 'pending',
         } as any);

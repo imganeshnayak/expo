@@ -118,6 +118,7 @@ const UserSchema = new mongoose_1.Schema({
         default: true,
     },
     refreshToken: String,
+    pushToken: String, // Expo Push Notification token
     loyaltyPoints: {
         type: Number,
         default: 0,
@@ -127,6 +128,73 @@ const UserSchema = new mongoose_1.Schema({
         enum: ['Bronze', 'Silver', 'Gold', 'Platinum'],
         default: 'Bronze',
     },
+    gamification: {
+        xp: {
+            current: { type: Number, default: 0 },
+            lifetime: { type: Number, default: 0 },
+        },
+        rank: {
+            league: {
+                type: String,
+                enum: ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Legendary'],
+                default: 'Bronze',
+            },
+            tier: { type: Number, default: 1 },
+            displayName: { type: String, default: 'Bronze I' },
+        },
+        streak: {
+            current: { type: Number, default: 0 },
+            lastActiveDate: { type: Date, default: Date.now },
+        },
+        unlockedFeatures: [String],
+        skillTree: {
+            type: Map,
+            of: Number,
+            default: {},
+        },
+        pendingRewards: [
+            {
+                title: String,
+                xp: Number,
+                source: String,
+                createdAt: { type: Date, default: Date.now },
+            }
+        ],
+        lastDailyCheckIn: { type: Date },
+    },
+    claimedDeals: [
+        {
+            dealId: {
+                type: mongoose_1.Schema.Types.ObjectId,
+                ref: 'Campaign',
+            },
+            claimedAt: {
+                type: Date,
+                default: Date.now,
+            },
+            redeemedAt: Date,
+            savings: {
+                type: Number,
+                default: 0,
+            },
+            redemptionCode: {
+                type: String,
+                unique: true,
+                sparse: true,
+            },
+            status: {
+                type: String,
+                enum: ['pending', 'redeemed', 'expired'],
+                default: 'pending',
+            },
+        },
+    ],
+    favoritedDeals: [
+        {
+            type: mongoose_1.Schema.Types.ObjectId,
+            ref: 'Campaign',
+        },
+    ],
 }, {
     timestamps: true,
 });

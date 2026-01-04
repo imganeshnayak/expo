@@ -1,7 +1,12 @@
 import { Stack } from 'expo-router';
-import { useFonts } from 'expo-font';
-import { Belanosima_400Regular, Belanosima_600SemiBold, Belanosima_700Bold } from '@expo-google-fonts/belanosima';
-import { EricaOne_400Regular } from '@expo-google-fonts/erica-one';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -20,10 +25,11 @@ export default function RootLayout() {
   const theme = useAppTheme();
   const [showCustomSplash, setShowCustomSplash] = useState(true);
   const [loaded, error] = useFonts({
-    Belanosima: Belanosima_400Regular,
-    'Belanosima-SemiBold': Belanosima_600SemiBold,
-    'Belanosima-Bold': Belanosima_700Bold,
-    EricaOne: EricaOne_400Regular,
+    'PlusJakartaSans-Regular': PlusJakartaSans_400Regular,
+    'PlusJakartaSans-Medium': PlusJakartaSans_500Medium,
+    'PlusJakartaSans-SemiBold': PlusJakartaSans_600SemiBold,
+    'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
+    'PlusJakartaSans-ExtraBold': PlusJakartaSans_800ExtraBold,
   });
 
   useEffect(() => {

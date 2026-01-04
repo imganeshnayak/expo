@@ -32,7 +32,7 @@ export default function ScannerScreen() {
   const [scanData, setScanData] = useState<any>(null);
   const scanLineAnim = React.useRef(new Animated.Value(0)).current;
   const successAnim = React.useRef(new Animated.Value(0)).current;
-  
+
   const { processCashback, activeBookings } = useWalletStore();
   const { gamification } = useUserStore();
   const canAccessLoyaltyCards = canAccessFeature(gamification.xp.current, 'LOYALTY_CARDS');
@@ -64,19 +64,19 @@ export default function ScannerScreen() {
     ).start();
   };
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
-    
+
     setScanned(true);
-    
+
     try {
       const parsedData = JSON.parse(data);
-      
+
       // Validate QR data
       if (parsedData.type === 'merchant' || parsedData.type === 'user' || parsedData.type === 'booking') {
         setScanData(parsedData);
         setScanState('success');
-        
+
         // Success animation
         Animated.spring(successAnim, {
           toValue: 1,
@@ -84,7 +84,7 @@ export default function ScannerScreen() {
           friction: 7,
           useNativeDriver: true,
         }).start();
-        
+
         // Process the scan
         setTimeout(() => {
           handleScanSuccess(parsedData);
@@ -96,7 +96,7 @@ export default function ScannerScreen() {
       setScanState('error');
       Alert.alert(
         'Invalid QR Code',
-        'This QR code is not recognized by UMA. Please scan a valid merchant or user QR code.',
+        'This QR code is not recognized by Utopia. Please scan a valid merchant or user QR code.',
         [
           {
             text: 'Try Again',
@@ -110,29 +110,29 @@ export default function ScannerScreen() {
     }
   };
 
-  const handleScanSuccess = (data: any) => {
+  const handleScanSuccess = async (data: any) => {
     if (data.type === 'booking') {
       // This is a booking QR - simulate merchant scanning it
       const booking = activeBookings.find(b => b.id === data.bookingId);
-      
+
       if (booking && booking.status === 'active') {
         const cashbackAmount = booking.cashbackAmount || 0;
-        
+
         // Process cashback
         processCashback(data.bookingId, cashbackAmount, data.merchant);
-        
+
         // Earn loyalty stamp for booking redemption
         const stampEarned = useLoyaltyStore.getState().earnStamp(
           booking.merchant,
           booking.dealId,
           'Merchant Location'
         );
-        
+
         // Track mission progress for QR scan
         useMissionStore.getState().trackQRScan(data.merchantId || data.merchant);
-        
+
         const stampMessage = stampEarned ? '\n🎯 +1 Loyalty Stamp earned!' : '';
-        
+
         Alert.alert(
           '🎉 Cashback Credited!',
           `Congratulations! ₹${cashbackAmount.toFixed(2)} has been added to your wallet as cashback from ${data.merchant}.${stampMessage}`,
@@ -163,14 +163,14 @@ export default function ScannerScreen() {
         undefined,
         data.location
       );
-      
+
       // Track mission progress for merchant QR scan
       useMissionStore.getState().trackQRScan(data.merchantId || data.merchantName);
-      
+
       const message = stampEarned
         ? `Connected to ${data.merchantName || 'Merchant'}! \n🎯 Stamp earned on your loyalty card!`
         : `Connected to ${data.merchantName || 'Merchant'}. Check your wallet for new deals!`;
-      
+
       const buttons = [
         {
           text: stampEarned ? 'View Loyalty Cards' : 'View Wallet',
@@ -193,23 +193,35 @@ export default function ScannerScreen() {
           onPress: () => router.back(),
         },
       ];
-      
+
       Alert.alert(
         stampEarned ? 'Stamp Earned! 🎯' : 'Merchant Scanned!',
         message,
         buttons
       );
     } else if (data.type === 'user') {
-      Alert.alert(
-        'User Connected!',
-        `Successfully connected with user.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      // Send friend request
+      try {
+        const identifier = data.email || data.username;
+        if (!identifier) throw new Error('Invalid user QR code');
+
+        // Import dynamically to avoid circular deps if any, or just use the service
+        const { socialService } = require('@/services/api/socialService');
+
+        const res = await socialService.sendRequest(identifier);
+
+        if (res.error) {
+          Alert.alert('Error', res.error, [{ text: 'OK', onPress: () => setScanned(false) }]);
+        } else {
+          Alert.alert(
+            'Friend Request Sent! 👋',
+            `Request sent to ${data.name || identifier}`,
+            [{ text: 'Great!', onPress: () => router.back() }]
+          );
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to process friend code', [{ text: 'OK', onPress: () => setScanned(false) }]);
+      }
     }
   };
 

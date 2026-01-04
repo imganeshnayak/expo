@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 const getBaseUrl = () => {
     // For physical devices, use your machine's actual IP address
     if (__DEV__) {
-        return 'http://192.168.1.102:5000';
+        return 'http://192.168.1.3:5000';
     }
 
     // Production - Update this with your production API URL

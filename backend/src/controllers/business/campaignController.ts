@@ -204,6 +204,34 @@ export const resumeCampaign = async (req: Request, res: Response) => {
     }
 };
 
+// @desc    Archive campaign
+// @route   POST /api/campaigns/:id/archive
+// @access  Private
+// @ts-ignore
+export const archiveCampaign = async (req: Request, res: Response) => {
+    try {
+        const merchantId = req.user?.merchantId;
+        const campaign = await Campaign.findOne({
+            _id: req.params.id,
+            merchantId,
+        });
+
+        if (!campaign) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+
+        campaign.status = 'archived';
+        await campaign.save();
+
+        res.json({
+            success: true,
+            campaign,
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // @desc    Duplicate campaign
 // @route   POST /api/campaigns/:id/duplicate
 // @access  Private

@@ -21,40 +21,68 @@ export interface Rank {
     tier: number;
 }
 
+// 1XP ~ ₹10-100 spend or 1 check-in. Slow progression is key.
 export const RANKS: Rank[] = [
+    // Bronze (The Rookie)
     { name: 'Bronze I', xp: 0, league: 'Bronze', tier: 1 },
-    { name: 'Bronze II', xp: 50, league: 'Bronze', tier: 2 },
-    { name: 'Bronze III', xp: 150, league: 'Bronze', tier: 3 },
-    { name: 'Silver I', xp: 250, league: 'Silver', tier: 1 },
-    { name: 'Silver II', xp: 350, league: 'Silver', tier: 2 },
-    { name: 'Silver III', xp: 450, league: 'Silver', tier: 3 },
-    { name: 'Gold I', xp: 550, league: 'Gold', tier: 1 },
-    { name: 'Gold II', xp: 650, league: 'Gold', tier: 2 },
-    { name: 'Gold III', xp: 750, league: 'Gold', tier: 3 },
-    { name: 'Platinum I', xp: 850, league: 'Platinum', tier: 1 },
-    { name: 'Platinum II', xp: 950, league: 'Platinum', tier: 2 },
-    { name: 'Platinum III', xp: 1050, league: 'Platinum', tier: 3 },
-    { name: 'Diamond I', xp: 1150, league: 'Diamond', tier: 1 },
-    { name: 'Diamond II', xp: 1250, league: 'Diamond', tier: 2 },
-    { name: 'Diamond III', xp: 1350, league: 'Diamond', tier: 3 },
-    { name: 'Legendary', xp: 1450, league: 'Legendary', tier: 1 },
+    { name: 'Bronze II', xp: 2500, league: 'Bronze', tier: 2 },
+    { name: 'Bronze III', xp: 5000, league: 'Bronze', tier: 3 },
+
+    // Silver (The Regular)
+    { name: 'Silver I', xp: 10000, league: 'Silver', tier: 1 },
+    { name: 'Silver II', xp: 20000, league: 'Silver', tier: 2 },
+    { name: 'Silver III', xp: 35000, league: 'Silver', tier: 3 },
+
+    // Gold (The Pro)
+    { name: 'Gold I', xp: 50000, league: 'Gold', tier: 1 },
+    { name: 'Gold II', xp: 75000, league: 'Gold', tier: 2 },
+    { name: 'Gold III', xp: 100000, league: 'Gold', tier: 3 },
+
+    // Platinum (The Elite)
+    { name: 'Platinum I', xp: 150000, league: 'Platinum', tier: 1 },
+    { name: 'Platinum II', xp: 250000, league: 'Platinum', tier: 2 },
+    { name: 'Platinum III', xp: 400000, league: 'Platinum', tier: 3 },
+
+    // Diamond (The Legend)
+    { name: 'Diamond I', xp: 600000, league: 'Diamond', tier: 1 },
+    { name: 'Diamond II', xp: 800000, league: 'Diamond', tier: 2 },
+    { name: 'Diamond III', xp: 1000000, league: 'Diamond', tier: 3 },
+
+    // Legendary
+    { name: 'Legendary', xp: 2000000, league: 'Legendary', tier: 1 },
 ];
 
-export const UTOPIA_MODE_THRESHOLD = 250; // Silver I unlock
+export const UTOPIA_MODE_THRESHOLD = 50000; // Gold I unlock (Neon Mode)
 
+// Feature Unlock Schedule - Exciting rewards for each tier!
 export const FEATURE_UNLOCKS = {
-    MISSIONS: 250,
-    UTOPIA_MAP: 250,
-    SKILL_TREES: 450,
-    AVATAR: 250,
-    LOYALTY_CARDS: 250,
-    FLASH_DEALS: 350,
-    PAY_LATER: 450,
-    LEADERBOARD: 550,
-    PREMIUM_SKIN: 850,
-    NO_ADS: 1050,
-    XP_MULTIPLIER: 750,
-    FOUNDERS_CLUB: 1450,
+    // Bronze (Starter Perks)
+    DAILY_SCRATCH_CARD: 0,       // Bronze I - Win daily prizes
+    MISSIONS: 0,                 // Bronze I - UNLOCKED FROM START!
+    VOUCHERS: 5000,              // Bronze III - Claimable discount vouchers
+
+    // Silver (Growing Benefits)
+    LOYALTY_CARDS: 10000,        // Silver I - Link store loyalty programs
+    DEAL_ALERTS: 20000,          // Silver II - Get notified of nearby deals
+    EXCLUSIVE_DEALS: 35000,      // Silver III - Access Silver-only deals
+
+    // Gold (Premium Rewards)
+    FLASH_DROPS: 50000,          // Gold I - Limited-time mega deals
+    PRIORITY_SUPPORT: 75000,     // Gold II - Skip the queue support
+    XP_BOOST_1_5X: 100000,       // Gold III - Level up 1.5x faster
+
+    // Platinum (Elite Status)
+    DOUBLE_DAILY: 150000,        // Platinum I - 2x Scratch Cards Daily
+    GIFT_MODE: 250000,           // Platinum II - Send rewards to friends
+    MONTHLY_LOOT: 400000,        // Platinum III - Free Mystery Box/Month
+
+    // Diamond (VIP Treatment)
+    VIP_LOUNGE: 600000,          // Diamond I - Exclusive merchant events
+    PROFILE_AURA: 800000,        // Diamond II - Special profile effects
+    VERIFIED_BADGE: 1000000,     // Diamond III - Blue checkmark status
+
+    // Legendary (The Ultimate)
+    LEGENDARY_UI: 2000000,       // Custom app theme & ultimate perks
 } as const;
 
 export type FeatureId = keyof typeof FEATURE_UNLOCKS;

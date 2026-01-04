@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, ScrollView, Alert, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Mail, Lock, User, ArrowRight, ArrowLeft } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { Mail, Lock, User, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { theme, lightColors, darkColors, commonTheme } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
@@ -15,6 +15,12 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const colorScheme = useColorScheme();
+    const colors = colorScheme === 'dark' ? darkColors : lightColors;
+    const activeTheme = { ...commonTheme, colors };
 
     const { register, error, isLoading } = useAuthStore();
 
@@ -46,17 +52,17 @@ export default function RegisterScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: activeTheme.colors.background }]}>
             <LinearGradient
-                colors={[theme.colors.background, theme.colors.surface, theme.colors.background]}
+                colors={[activeTheme.colors.background, activeTheme.colors.surface, activeTheme.colors.background]}
                 style={StyleSheet.absoluteFill}
             />
 
             {/* Background ambient lights */}
-            <View style={[styles.ambientLight, { top: -100, right: -100, backgroundColor: theme.colors.secondary }]} />
-            <View style={[styles.ambientLight, { bottom: -100, left: -100, backgroundColor: theme.colors.primary }]} />
+            <View style={[styles.ambientLight, { top: -100, right: -100, backgroundColor: activeTheme.colors.secondary }]} />
+            <View style={[styles.ambientLight, { bottom: -100, left: -100, backgroundColor: activeTheme.colors.primary }]} />
 
-            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="light" />
+            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -64,36 +70,36 @@ export default function RegisterScreen() {
             >
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     <TouchableOpacity
-                        style={styles.backButton}
+                        style={[styles.backButton, { backgroundColor: activeTheme.colors.surface }]}
                         onPress={() => router.back()}
                     >
-                        <ArrowLeft color={theme.colors.text} size={24} />
+                        <ArrowLeft color={activeTheme.colors.text} size={24} />
                     </TouchableOpacity>
 
                     <View style={styles.header}>
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join us and start growing your business today</Text>
+                        <Text style={[styles.title, { color: activeTheme.colors.text }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: activeTheme.colors.textSecondary }]}>Join us and start growing your business today</Text>
                     </View>
 
                     <View style={styles.form}>
-                        <View style={styles.inputContainer}>
-                            <User color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                            <User color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: activeTheme.colors.text }]}
                                 placeholder="Full Name"
-                                placeholderTextColor={theme.colors.textTertiary}
+                                placeholderTextColor={activeTheme.colors.textTertiary}
                                 value={fullName}
                                 onChangeText={setFullName}
                                 autoCapitalize="words"
                             />
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Mail color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                            <Mail color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: activeTheme.colors.text }]}
                                 placeholder="Email Address"
-                                placeholderTextColor={theme.colors.textTertiary}
+                                placeholderTextColor={activeTheme.colors.textTertiary}
                                 value={email}
                                 onChangeText={setEmail}
                                 autoCapitalize="none"
@@ -101,28 +107,42 @@ export default function RegisterScreen() {
                             />
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Lock color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                            <Lock color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: activeTheme.colors.text }]}
                                 placeholder="Password"
-                                placeholderTextColor={theme.colors.textTertiary}
+                                placeholderTextColor={activeTheme.colors.textTertiary}
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry
+                                secureTextEntry={!showPassword}
                             />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                {showPassword ? (
+                                    <EyeOff color={activeTheme.colors.textTertiary} size={20} />
+                                ) : (
+                                    <Eye color={activeTheme.colors.textTertiary} size={20} />
+                                )}
+                            </TouchableOpacity>
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Lock color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                            <Lock color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: activeTheme.colors.text }]}
                                 placeholder="Confirm Password"
-                                placeholderTextColor={theme.colors.textTertiary}
+                                placeholderTextColor={activeTheme.colors.textTertiary}
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
-                                secureTextEntry
+                                secureTextEntry={!showConfirmPassword}
                             />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                {showConfirmPassword ? (
+                                    <EyeOff color={activeTheme.colors.textTertiary} size={20} />
+                                ) : (
+                                    <Eye color={activeTheme.colors.textTertiary} size={20} />
+                                )}
+                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
@@ -131,7 +151,7 @@ export default function RegisterScreen() {
                             disabled={isLoading}
                         >
                             <LinearGradient
-                                colors={theme.colors.gradientPrimary}
+                                colors={activeTheme.colors.gradientPrimary}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.buttonGradient}
@@ -142,9 +162,9 @@ export default function RegisterScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.footer}>
-                            <Text style={styles.footerText}>Already have an account? </Text>
+                            <Text style={[styles.footerText, { color: activeTheme.colors.textSecondary }]}>Already have an account? </Text>
                             <TouchableOpacity onPress={() => router.back()}>
-                                <Text style={styles.linkText}>Sign In</Text>
+                                <Text style={[styles.linkText, { color: activeTheme.colors.primary }]}>Sign In</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

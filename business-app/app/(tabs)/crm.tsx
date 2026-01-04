@@ -33,6 +33,7 @@ import {
   ChevronRight,
   Phone,
   MessageCircle,
+  Trash2,
 } from 'lucide-react-native';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import {
@@ -44,6 +45,8 @@ import {
   formatDate,
 } from '../../store/crmStore';
 import { notificationService } from '../../services/api/notificationService';
+import { api } from '../../lib/api';
+import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -105,7 +108,7 @@ export default function CRMScreen() {
 
     setSending(true);
     try {
-      await notificationService.sendNotification({
+      const response = await notificationService.sendNotification({
         title: notificationTitle,
         message: notificationMessage,
         audience: notificationAudience,
@@ -122,10 +125,15 @@ export default function CRMScreen() {
       // Refresh communications list
       await onRefresh();
 
-      Alert.alert('Success', 'Notification sent successfully!');
-    } catch (error) {
+      // Check if any were actually sent
+      if (response.notification.sentCount > 0) {
+        Alert.alert('Success', `Notification sent to ${response.notification.sentCount} users!`);
+      } else {
+        Alert.alert('Warning', 'Notification processed but sent to 0 users. Check if users have push tokens registered.');
+      }
+    } catch (error: any) {
       console.error('Error sending notification:', error);
-      Alert.alert('Error', 'Failed to send notification. Please try again.');
+      Alert.alert('Error', `Failed to send notification: ${error.message || 'Unknown error'}`);
     } finally {
       setSending(false);
     }
@@ -433,12 +441,55 @@ export default function CRMScreen() {
   const renderMessagesTab = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.communicationsContent}>
-        <Text style={styles.tabTitle}>Message History</Text>
-        <Text style={styles.tabSubtitle}>Past messages sent to customers</Text>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.tabTitle}>Message History</Text>
+            <Text style={styles.tabSubtitle}>Past messages sent to customers</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.clearHistoryButton}
+            onPress={() => {
+              Alert.alert(
+                'Clear History',
+                'Are you sure you want to delete all notification history? This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await api.delete('/api/business/push-notifications');
+                        // Refresh the list
+                        useCRMStore.getState().initializeCustomers(useAuthStore.getState().user?.merchantId || '');
+                        Alert.alert('Success', 'History cleared');
+                      } catch (error: any) {
+                        console.error('Clear history error:', error);
+                        Alert.alert('Error', `Failed to clear history: ${error.message || 'Unknown error'}`);
+                      }
+                    }
+                  }
+                ]
+              );
+            }}>
+            <Trash2 size={20} color="#E74C3C" />
+          </TouchableOpacity>
+        </View>
 
         {communications.length > 0 ? (
           communications.map(comm => (
-            <View key={comm.id} style={styles.communicationCard}>
+            <TouchableOpacity
+              key={comm.id}
+              style={styles.communicationCard}
+              onPress={() => {
+                setNotificationTitle(comm.message.title);
+                setNotificationMessage(comm.message.body);
+                Alert.alert(
+                  'Message Details',
+                  `Title: ${comm.message.title}\n\nMessage: ${comm.message.body}\n\nStatus: ${comm.status.toUpperCase()}\nSent: ${comm.performance.sent}\nDelivered: ${comm.performance.delivered}`
+                );
+              }}
+            >
               <View style={styles.communicationHeader}>
                 <View>
                   <Text style={styles.communicationTitle}>{comm.message.title}</Text>
@@ -455,7 +506,9 @@ export default function CRMScreen() {
                           ? '#2ECC7120'
                           : comm.status === 'scheduled'
                             ? '#F39C1220'
-                            : theme.colors.surfaceLight,
+                            : comm.status === 'failed'
+                              ? '#E74C3C20'
+                              : theme.colors.surfaceLight,
                     },
                   ]}>
                   <Text
@@ -467,14 +520,16 @@ export default function CRMScreen() {
                             ? '#2ECC71'
                             : comm.status === 'scheduled'
                               ? '#F39C12'
-                              : theme.colors.textSecondary,
+                              : comm.status === 'failed'
+                                ? '#E74C3C'
+                                : theme.colors.textSecondary,
                       },
                     ]}>
                     {comm.status.toUpperCase()}
                   </Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -1028,18 +1083,27 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   viewSegmentText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.text,
+    fontWeight: '600',
+    color: theme.colors.primary,
     fontFamily: theme.fontFamily.primary,
   },
   communicationsContent: {
     padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  clearHistoryButton: {
+    padding: 8,
+  },
   communicationCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: theme.colors.surfaceLight,
   },
@@ -1047,7 +1111,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   communicationTitle: {
     fontSize: 16,
@@ -1076,9 +1140,9 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primary,
-    padding: 16,
+    paddingVertical: 16,
     borderRadius: theme.borderRadius.lg,
-    marginTop: 8,
+    marginTop: 16,
     gap: 8,
   },
   createCommunicationText: {
@@ -1087,18 +1151,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: theme.fontFamily.primary,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    height: '80%',
     padding: 24,
-    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1107,77 +1170,78 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
     fontFamily: theme.fontFamily.heading,
   },
   modalClose: {
-    fontSize: 28,
+    fontSize: 24,
     color: theme.colors.textSecondary,
-    fontWeight: '300',
+    padding: 4,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: 8,
-    marginTop: 16,
     fontFamily: theme.fontFamily.primary,
   },
   input: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.md,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
     color: theme.colors.text,
     borderWidth: 1,
     borderColor: theme.colors.surfaceLight,
+    marginBottom: 20,
     fontFamily: theme.fontFamily.primary,
   },
   textArea: {
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
   },
   audienceSelector: {
     flexDirection: 'row',
+    marginBottom: 20,
     gap: 12,
   },
   audienceOption: {
     flex: 1,
-    padding: 16,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.surfaceLight,
+    paddingVertical: 12,
     alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.background,
   },
   audienceOptionActive: {
+    backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}10`,
   },
   audienceOptionText: {
     fontSize: 14,
-    fontWeight: '600',
     color: theme.colors.textSecondary,
+    fontWeight: '600',
     fontFamily: theme.fontFamily.primary,
   },
   audienceOptionTextActive: {
-    color: theme.colors.primary,
+    color: '#FFFFFF',
   },
   segmentSelection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 12,
+    marginBottom: 24,
   },
   segmentOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.background,
   },
   segmentOptionActive: {
     backgroundColor: theme.colors.primary,
@@ -1197,13 +1261,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.primary,
-    padding: 16,
+    paddingVertical: 16,
     borderRadius: theme.borderRadius.lg,
-    marginTop: 24,
     gap: 8,
   },
   sendButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   sendButtonText: {
     fontSize: 16,

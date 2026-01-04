@@ -33,7 +33,10 @@ export default function CategoryDealsScreen() {
             setLoading(true);
             const response = await dealsService.getDeals();
             if (response.data) {
-                const filtered = response.data.filter(deal => deal.category === category);
+                let filtered = response.data;
+                if (category && category !== 'all' && category !== 'coupon-discovery') {
+                    filtered = response.data.filter(deal => deal.category === category);
+                }
                 setDeals(filtered);
             }
         } catch (error) {

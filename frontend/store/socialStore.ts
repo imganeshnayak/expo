@@ -39,6 +39,7 @@ export interface SocialGroup {
   members: GroupMember[];
   createdBy: string;
   createdAt: Date;
+  updatedAt?: Date;
   purpose: 'hanging_out' | 'food_exploration' | 'weekend_plans' | 'custom';
   activeMission?: {
     missionId: string;
@@ -574,39 +575,44 @@ interface SocialState {
   badges: SocialBadge[];
   privacySettings: PrivacySettings;
   suggestedFriends: Friend[];
-  
+
   // User Stats
   myReferralCode: string;
   totalReferralEarnings: number;
-  
+  myArchetype?: string;
+
   // Actions
   fetchFriends: () => Promise<void>;
+  fetchReferralData: () => Promise<void>;
+  fetchGroups: () => Promise<void>;
   addFriend: (friendId: string) => Promise<void>;
   removeFriend: (friendId: string) => Promise<void>;
   sendFriendRequest: (userId: string) => Promise<void>;
   acceptFriendRequest: (requestId: string) => Promise<void>;
   rejectFriendRequest: (requestId: string) => Promise<void>;
-  
+
   createGroup: (name: string, purpose: SocialGroup['purpose'], memberIds: string[], emoji?: string, description?: string) => Promise<string>;
   addGroupMember: (groupId: string, userId: string) => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   sendGroupMessage: (groupId: string, message: string, type?: GroupMessage['type']) => Promise<void>;
-  
+
   shareDeal: (dealId: string, dealTitle: string, dealDiscount: string, merchantName: string, recipientIds: string[], message?: string, groupId?: string) => Promise<void>;
   claimSharedDeal: (sharedDealId: string) => Promise<void>;
-  
+
   postActivity: (type: SocialActivity['type'], title: string, description: string, data: any) => Promise<void>;
   likeActivity: (activityId: string) => Promise<void>;
   unlikeActivity: (activityId: string) => Promise<void>;
   commentOnActivity: (activityId: string, text: string) => Promise<void>;
-  
+
   generateReferralLink: () => string;
   trackReferral: (refereePhone: string) => Promise<void>;
-  
+
   updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
-  
+
   fetchLeaderboard: (type: Leaderboard['type'], period: Leaderboard['period']) => Promise<void>;
-  
+  setArchetype: (archetype: string) => Promise<void>;
+  fetchArchetype: () => Promise<void>;
+
   // Helper functions
   getFriendById: (friendId: string) => Friend | undefined;
   getGroupById: (groupId: string) => SocialGroup | undefined;
@@ -661,9 +667,31 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   // Actions
   fetchFriends: async () => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // Friends already loaded from sample data
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      const res = await socialService.getFriends();
+      if (res.data) {
+        set({ friends: res.data.friends });
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  },
+
+  fetchReferralData: async () => {
+    try {
+      const { api } = require('@/services/api/client'); // Direct API usage or create a service
+      const res = await api.get('/api/referrals/me');
+      if (res.data) {
+        set({
+          myReferralCode: res.data.code,
+          totalReferralEarnings: res.data.totalEarnings,
+          referrals: res.data.referrals
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching referral data:', error);
+    }
   },
 
   addFriend: async (friendId: string) => {
@@ -674,7 +702,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         friends: [...friends, friend],
         suggestedFriends: suggestedFriends.filter(f => f.id !== friendId),
       });
-      
+
       // Post activity
       get().postActivity(
         'friend_joined',
@@ -720,7 +748,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         joinedAt: new Date(),
         stats: { points: 0, missionsCompleted: 0, totalSavings: 0, streak: 0 },
       };
-      
+
       set({
         friends: [...friends, newFriend],
         friendRequests: friendRequests.map(r =>
@@ -740,76 +768,92 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   },
 
   createGroup: async (name: string, purpose: SocialGroup['purpose'], memberIds: string[], emoji?: string, description?: string) => {
-    const { groups, friends } = get();
-    const groupId = `group-${Date.now()}`;
-    
-    const members: GroupMember[] = [
-      { userId: 'me', name: 'You', role: 'admin', joinedAt: new Date(), contribution: 0 },
-      ...memberIds.map(id => {
-        const friend = friends.find(f => f.id === id);
-        return {
-          userId: id,
-          name: friend?.name || 'Unknown',
-          avatar: friend?.avatar,
-          role: 'member' as const,
-          joinedAt: new Date(),
-          contribution: 0,
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      const res = await socialService.createGroup({ name, purpose, memberIds, emoji, description });
+      if (res.data) {
+        await get().fetchGroups();
+        return res.data.data._id;
+      }
+    } catch (error) {
+      console.error('Error creating group:', error);
+    }
+    return '';
+  },
+
+  fetchGroups: async () => {
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      const res = await socialService.getMyGroups();
+      if (res.data) {
+        const mappedGroups = res.data.data.map((g: any) => ({
+          ...g,
+          id: g._id,
+          members: g.members.map((m: any) => ({
+            ...m,
+            userId: m.userId._id,
+            name: m.userId.profile.name,
+            avatar: m.userId.profile.avatar
+          }))
+        }));
+        set({ groups: mappedGroups });
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    }
+  },
+
+  fetchLeaderboard: async (type: Leaderboard['type'], period: Leaderboard['period']) => {
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      const res = await socialService.getLeaderboard(type, period);
+      if (res.data) {
+        const { leaderboards } = get();
+        const existingIndex = leaderboards.findIndex(l => l.type === type && l.period === period);
+
+        const newLeaderboard: Leaderboard = {
+          id: `lb-${type}-${period}`,
+          type,
+          period,
+          entries: res.data.data,
+          lastUpdated: new Date(),
         };
-      }),
-    ];
-    
-    const newGroup: SocialGroup = {
-      id: groupId,
-      name,
-      emoji: emoji || '👥',
-      description,
-      members,
-      createdBy: 'me',
-      createdAt: new Date(),
-      purpose,
-      chatMessages: [],
-      stats: {
-        totalSavings: 0,
-        missionsCompleted: 0,
-        dealsShared: 0,
-      },
-    };
-    
-    set({ groups: [...groups, newGroup] });
-    
-    // Post activity
-    get().postActivity(
-      'group_created',
-      'Group Created',
-      `Created a new group "${name}"`,
-      { groupId, groupName: name }
-    );
-    
-    return groupId;
+
+        if (existingIndex >= 0) {
+          const newLeaderboards = [...leaderboards];
+          newLeaderboards[existingIndex] = newLeaderboard;
+          set({ leaderboards: newLeaderboards });
+        } else {
+          set({ leaderboards: [...leaderboards, newLeaderboard] });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    }
   },
 
   addGroupMember: async (groupId: string, userId: string) => {
     const { groups, friends } = get();
     const friend = friends.find(f => f.id === userId);
     if (!friend) return;
-    
+
     set({
       groups: groups.map(g =>
         g.id === groupId
           ? {
-              ...g,
-              members: [
-                ...g.members,
-                {
-                  userId,
-                  name: friend.name,
-                  avatar: friend.avatar,
-                  role: 'member' as const,
-                  joinedAt: new Date(),
-                  contribution: 0,
-                },
-              ],
-            }
+            ...g,
+            members: [
+              ...g.members,
+              {
+                userId,
+                name: friend.name,
+                avatar: friend.avatar,
+                role: 'member' as const,
+                joinedAt: new Date(),
+                contribution: 0,
+              },
+            ],
+          }
           : g
       ),
     });
@@ -838,7 +882,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       createdAt: new Date(),
       readBy: ['me'],
     };
-    
+
     set({
       groups: groups.map(g =>
         g.id === groupId
@@ -864,9 +908,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       createdAt: new Date(),
       claimedBy: [],
     };
-    
+
     set({ sharedDeals: [...sharedDeals, newSharedDeal] });
-    
+
     // If shared with group, send message
     if (groupId) {
       get().sendGroupMessage(
@@ -874,7 +918,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         message || `Check out this deal: ${dealTitle} - ${dealDiscount} at ${merchantName}!`,
         'deal_share'
       );
-      
+
       // Update group stats
       set({
         groups: groups.map(g =>
@@ -884,7 +928,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         ),
       });
     }
-    
+
     // Post activity
     get().postActivity(
       'deal_shared',
@@ -907,9 +951,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   postActivity: async (type: SocialActivity['type'], title: string, description: string, data: any) => {
     const { socialFeed, privacySettings } = get();
-    
+
     if (!privacySettings.showActivity) return;
-    
+
     const newActivity: SocialActivity = {
       id: `activity-${Date.now()}`,
       userId: 'me',
@@ -922,7 +966,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       likes: [],
       comments: [],
     };
-    
+
     set({ socialFeed: [newActivity, ...socialFeed] });
   },
 
@@ -957,7 +1001,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       text,
       createdAt: new Date(),
     };
-    
+
     set({
       socialFeed: socialFeed.map(a =>
         a.id === activityId
@@ -990,7 +1034,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         referee: 0,
       },
     };
-    
+
     set({ referrals: [...referrals, newReferral] });
   },
 
@@ -999,34 +1043,27 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     set({ privacySettings: { ...privacySettings, ...settings } });
   },
 
-  fetchLeaderboard: async (type: Leaderboard['type'], period: Leaderboard['period']) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const { leaderboards } = get();
-    
-    const existingIndex = leaderboards.findIndex(
-      lb => lb.type === type && lb.period === period
-    );
-    
-    if (existingIndex >= 0) {
-      // Update existing
-      set({
-        leaderboards: leaderboards.map((lb, i) =>
-          i === existingIndex
-            ? { ...lb, lastUpdated: new Date() }
-            : lb
-        ),
-      });
-    } else {
-      // Create new
-      const newLeaderboard: Leaderboard = {
-        id: `lb-${Date.now()}`,
-        type,
-        period,
-        entries: LEADERBOARD_DATA,
-        lastUpdated: new Date(),
-      };
-      set({ leaderboards: [...leaderboards, newLeaderboard] });
+
+
+  setArchetype: async (archetype: string) => {
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      await socialService.setArchetype(archetype);
+      set({ myArchetype: archetype });
+    } catch (error) {
+      console.error('Error setting archetype:', error);
+    }
+  },
+
+  fetchArchetype: async () => {
+    try {
+      const { socialService } = require('@/services/api/socialService');
+      const res = await socialService.getArchetype();
+      if (res.data && res.data.data.archetype) {
+        set({ myArchetype: res.data.data.archetype });
+      }
+    } catch (error) {
+      console.error('Error fetching archetype:', error);
     }
   },
 
@@ -1059,7 +1096,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 // Export helper functions for formatting
 export const formatTimeAgo = (date: Date): string => {
   const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
-  
+
   if (seconds < 60) return 'Just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;

@@ -25,10 +25,16 @@ export class ApiError extends Error {
     }
 }
 
+// In-memory token cache
+let memoryToken: string | null = null;
+
 // Get stored auth token
 export const getToken = async (): Promise<string | null> => {
+    if (memoryToken) return memoryToken;
     try {
-        return await AsyncStorage.getItem(TOKEN_KEY);
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (token) memoryToken = token;
+        return token;
     } catch {
         return null;
     }
@@ -36,6 +42,7 @@ export const getToken = async (): Promise<string | null> => {
 
 // Set auth token
 export const setToken = async (token: string): Promise<void> => {
+    memoryToken = token;
     try {
         await AsyncStorage.setItem(TOKEN_KEY, token);
     } catch (error) {
@@ -45,6 +52,7 @@ export const setToken = async (token: string): Promise<void> => {
 
 // Remove auth token
 export const removeToken = async (): Promise<void> => {
+    memoryToken = null;
     try {
         await AsyncStorage.removeItem(TOKEN_KEY);
     } catch (error) {
@@ -75,21 +83,26 @@ const fetchWithTimeout = async (
 // Main API client
 class ApiClient {
     private baseUrl: string;
+    private onUnauthorized: (() => void) | null = null;
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
     }
 
+    setUnauthorizedCallback(callback: () => void) {
+        this.onUnauthorized = callback;
+    }
+
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {},
+        options: RequestInit & { skipGlobalAuthHandler?: boolean } = {},
         requiresAuth: boolean = false
     ): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
 
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
-            ...options.headers,
+            ...(options.headers || {}),
         };
 
         // Add auth token if required
@@ -101,7 +114,11 @@ class ApiClient {
         }
 
         try {
-            console.log(`[API] ${options.method || 'GET'} ${endpoint}`);
+            // Suppress logs for frequent polling endpoints
+            const isPolling = endpoint.includes('/checkin/status');
+            if (!isPolling) {
+                console.log(`[API] ${options.method || 'GET'} ${endpoint}`);
+            }
 
             const response = await fetchWithTimeout(url, {
                 ...options,
@@ -112,7 +129,15 @@ class ApiClient {
 
             if (!response.ok) {
                 const errorMessage = data?.message || `Request failed with status ${response.status}`;
-                console.error(`[API Error] ${endpoint}: ${errorMessage}`);
+                if (response.status === 401) {
+                    if (!options.skipGlobalAuthHandler) {
+                        this.onUnauthorized?.();
+                    }
+                    // Don't log error for 401 as it's handled globally (or skipped)
+                } else {
+                    console.error(`[API Error] ${endpoint}: ${errorMessage}`);
+                }
+
                 return {
                     data: null,
                     error: errorMessage,
@@ -120,7 +145,6 @@ class ApiClient {
                 };
             }
 
-            console.log(`[API Success] ${endpoint}`);
             return {
                 data,
                 error: null,
@@ -152,21 +176,43 @@ class ApiClient {
     }
 
     // GET request
-    async get<T>(endpoint: string, requiresAuth: boolean = false): Promise<ApiResponse<T>> {
-        return this.request<T>(endpoint, { method: 'GET' }, requiresAuth);
+    async get<T>(
+        endpoint: string,
+        params: Record<string, any> = {},
+        requiresAuth: boolean = false,
+        options: { skipGlobalAuthHandler?: boolean } = {}
+    ): Promise<ApiResponse<T>> {
+        let url = endpoint;
+        if (Object.keys(params).length > 0) {
+            // Filter out undefined/null values
+            const validParams = Object.entries(params).reduce((acc, [key, value]) => {
+                if (value !== undefined && value !== null) {
+                    acc[key] = String(value);
+                }
+                return acc;
+            }, {} as Record<string, string>);
+
+            const queryString = new URLSearchParams(validParams).toString();
+            if (queryString) {
+                url += `?${queryString}`;
+            }
+        }
+        return this.request<T>(url, { method: 'GET', ...options }, requiresAuth);
     }
 
     // POST request
     async post<T>(
         endpoint: string,
         body: any,
-        requiresAuth: boolean = false
+        requiresAuth: boolean = false,
+        options: { skipGlobalAuthHandler?: boolean } = {}
     ): Promise<ApiResponse<T>> {
         return this.request<T>(
             endpoint,
             {
                 method: 'POST',
                 body: JSON.stringify(body),
+                ...options
             },
             requiresAuth
         );
@@ -176,21 +222,27 @@ class ApiClient {
     async put<T>(
         endpoint: string,
         body: any,
-        requiresAuth: boolean = false
+        requiresAuth: boolean = false,
+        options: { skipGlobalAuthHandler?: boolean } = {}
     ): Promise<ApiResponse<T>> {
         return this.request<T>(
             endpoint,
             {
                 method: 'PUT',
                 body: JSON.stringify(body),
+                ...options
             },
             requiresAuth
         );
     }
 
     // DELETE request
-    async delete<T>(endpoint: string, requiresAuth: boolean = false): Promise<ApiResponse<T>> {
-        return this.request<T>(endpoint, { method: 'DELETE' }, requiresAuth);
+    async delete<T>(
+        endpoint: string,
+        requiresAuth: boolean = false,
+        options: { skipGlobalAuthHandler?: boolean } = {}
+    ): Promise<ApiResponse<T>> {
+        return this.request<T>(endpoint, { method: 'DELETE', ...options }, requiresAuth);
     }
 }
 

@@ -96,12 +96,12 @@ export interface CheckInStatus {
 export const loyaltyService = {
     // Get user's loyalty profile (points, level, history)
     async getProfile(): Promise<ApiResponse<LoyaltyProfile>> {
-        return api.get<LoyaltyProfile>(API_ENDPOINTS.LOYALTY.PROFILE, true);
+        return api.get<LoyaltyProfile>(API_ENDPOINTS.LOYALTY.PROFILE, {}, true);
     },
 
     // Get available missions
     async getMissions(): Promise<ApiResponse<Mission[]>> {
-        return api.get<Mission[]>(API_ENDPOINTS.LOYALTY.MISSIONS, true);
+        return api.get<Mission[]>(API_ENDPOINTS.LOYALTY.MISSIONS, {}, true);
     },
 
     // Claim a mission reward
@@ -115,12 +115,12 @@ export const loyaltyService = {
 
     // Get gamification profile (XP, rank, unlocks)
     async getGamificationProfile(): Promise<ApiResponse<GamificationProfile>> {
-        return api.get<GamificationProfile>(API_ENDPOINTS.LOYALTY.GAMIFICATION, true);
+        return api.get<GamificationProfile>(API_ENDPOINTS.LOYALTY.GAMIFICATION, {}, true);
     },
 
     // Get pending XP rewards
     async getPendingRewards(): Promise<ApiResponse<PendingReward[]>> {
-        return api.get<PendingReward[]>('/api/loyalty/gamification/rewards/pending', true);
+        return api.get<PendingReward[]>('/api/loyalty/gamification/rewards/pending', {}, true);
     },
 
     // Claim a pending XP reward
@@ -152,7 +152,13 @@ export const loyaltyService = {
 
     // Get daily check-in status
     async getCheckInStatus(): Promise<ApiResponse<CheckInStatus>> {
-        return api.get<CheckInStatus>('/api/loyalty/checkin/status', true);
+        // Fix incorrect argument order (pass empty params object) and silence global 401 handler
+        return api.get<CheckInStatus>(
+            '/api/loyalty/checkin/status',
+            {},
+            true,
+            { skipGlobalAuthHandler: true }
+        );
     },
 };
 

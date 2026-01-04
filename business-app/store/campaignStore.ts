@@ -9,7 +9,7 @@ import { api } from '../lib/api';
 
 export type CampaignCategory = 'acquisition' | 'retention' | 'reactivation' | 'loyalty';
 export type CampaignDifficulty = 'simple' | 'advanced';
-export type CampaignType = 'stamp_card' | 'discount' | 'ride_reimbursement' | 'mission' | 'combo';
+export type CampaignType = 'stamp_card' | 'discount' | 'ride_reimbursement' | 'mission' | 'combo' | 'flash_deal';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
 export type AudienceType = 'all' | 'new' | 'returning' | 'high_value' | 'at_risk';
 export type TimingType = 'always' | 'schedule';
@@ -76,6 +76,16 @@ export interface Campaign {
     discountedPrice: number;
   };
   maxRedemptions?: number;
+  // Specific Deal Configs
+  stampConfig?: {
+    totalStamps: number;
+    rewardDescription: string;
+  };
+  flashConfig?: {
+    startTime: number;
+    endTime: number;
+    urgencyLabel?: string; // e.g. "Ending Soon"
+  };
 }
 
 export interface AIOptimization {
@@ -892,6 +902,7 @@ export const getCampaignTypeLabel = (type: CampaignType): string => {
     ride_reimbursement: 'Ride Reimbursement',
     mission: 'Mission',
     combo: 'Combo Offer',
+    flash_deal: 'Flash Deal',
   };
   return labels[type];
 };

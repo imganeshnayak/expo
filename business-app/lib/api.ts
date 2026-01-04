@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 
 // API Configuration
 // Using local IP to allow connection from physical devices on the same network
-const DEFAULT_API_URL = 'http://192.168.1.102:5000';
+const DEFAULT_API_URL = 'http://192.168.1.3:5000';
+// Prioritize ENV, fallback to verified local IP
 const API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL;
 
 // API Client
@@ -32,6 +33,9 @@ class ApiClient {
             headers.set('Content-Type', 'application/json');
         }
 
+        // Bypass localtunnel warning
+        headers.set('Bypass-Tunnel-Reminder', 'true');
+
         if (this.token) {
             headers.set('Authorization', `Bearer ${this.token}`);
         }
@@ -42,8 +46,14 @@ class ApiClient {
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Request failed' }));
-            throw new Error((error as any).message || `HTTP ${response.status}`);
+            const text = await response.text();
+            console.log(`❌ API Error [${response.status}] ${endpoint}:`, text);
+            try {
+                const error = JSON.parse(text);
+                throw new Error(error.message || `HTTP ${response.status}`);
+            } catch (e) {
+                throw new Error(`Request failed: [${response.status}] ${text.substring(0, 100)}`);
+            }
         }
 
         return response.json() as Promise<T>;

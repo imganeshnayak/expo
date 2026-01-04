@@ -1,37 +1,58 @@
 import User, { IUser } from '../models/User';
 
 export const RANKS = [
-    { name: 'Bronze I', minXp: 0, league: 'Bronze', tier: 1 },
-    { name: 'Bronze II', minXp: 50, league: 'Bronze', tier: 2 },
-    { name: 'Bronze III', minXp: 150, league: 'Bronze', tier: 3 },
-    { name: 'Silver I', minXp: 250, league: 'Silver', tier: 1 },
-    { name: 'Silver II', minXp: 350, league: 'Silver', tier: 2 },
-    { name: 'Silver III', minXp: 450, league: 'Silver', tier: 3 },
-    { name: 'Gold I', minXp: 550, league: 'Gold', tier: 1 },
-    { name: 'Gold II', minXp: 650, league: 'Gold', tier: 2 },
-    { name: 'Gold III', minXp: 750, league: 'Gold', tier: 3 },
-    { name: 'Platinum I', minXp: 850, league: 'Platinum', tier: 1 },
-    { name: 'Platinum II', minXp: 950, league: 'Platinum', tier: 2 },
-    { name: 'Platinum III', minXp: 1050, league: 'Platinum', tier: 3 },
-    { name: 'Diamond I', minXp: 1150, league: 'Diamond', tier: 1 },
-    { name: 'Diamond II', minXp: 1250, league: 'Diamond', tier: 2 },
-    { name: 'Diamond III', minXp: 1350, league: 'Diamond', tier: 3 },
-    { name: 'Legendary', minXp: 1450, league: 'Legendary', tier: 1 },
+    // Bronze (The Rookie) - ~0 to 1 Year
+    { name: 'Bronze I', minXp: 0, league: 'Bronze', tier: 1 },         // Day 1
+    { name: 'Bronze II', minXp: 2500, league: 'Bronze', tier: 2 },     // ~3 Months (at ~30XP/day)
+    { name: 'Bronze III', minXp: 5000, league: 'Bronze', tier: 3 },    // ~6 Months
+
+    // Silver (The Regular) - ~1 to 5 Years
+    { name: 'Silver I', minXp: 10000, league: 'Silver', tier: 1 },     // ~1 Year
+    { name: 'Silver II', minXp: 20000, league: 'Silver', tier: 2 },    // ~2 Years
+    { name: 'Silver III', minXp: 35000, league: 'Silver', tier: 3 },   // ~3.5 Years
+
+    // Gold (The Pro) - ~5 to 15 Years
+    { name: 'Gold I', minXp: 50000, league: 'Gold', tier: 1 },         // ~5 Years
+    { name: 'Gold II', minXp: 75000, league: 'Gold', tier: 2 },
+    { name: 'Gold III', minXp: 100000, league: 'Gold', tier: 3 },
+
+    // Platinum (The Elite) - ~15 to 50 Years
+    { name: 'Platinum I', minXp: 150000, league: 'Platinum', tier: 1 },
+    { name: 'Platinum II', minXp: 250000, league: 'Platinum', tier: 2 },
+    { name: 'Platinum III', minXp: 400000, league: 'Platinum', tier: 3 },
+
+    // Diamond (The Legend) - Lifetime Achievement
+    { name: 'Diamond I', minXp: 600000, league: 'Diamond', tier: 1 },
+    { name: 'Diamond II', minXp: 800000, league: 'Diamond', tier: 2 },
+    { name: 'Diamond III', minXp: 1000000, league: 'Diamond', tier: 3 },
+
+    // Legendary - Beyond Godlike
+    { name: 'Legendary', minXp: 2000000, league: 'Legendary', tier: 1 },
 ];
 
 export const FEATURES = {
-    MISSIONS: { id: 'missions', minRank: 'Silver I', minXp: 250 },
-    AI_LITE: { id: 'ai_lite', minRank: 'Silver I', minXp: 250 },
-    AVATAR: { id: 'avatar', minRank: 'Silver I', minXp: 250 },
-    SKILL_TREES: { id: 'skill_trees', minRank: 'Silver III', minXp: 450 },
-    LEADERBOARD: { id: 'leaderboard', minRank: 'Gold I', minXp: 550 },
-    AI_FULL: { id: 'ai_full', minRank: 'Gold I', minXp: 550 },
-    CITY_MAP: { id: 'city_map', minRank: 'Gold II', minXp: 650 },
-    XP_BOOSTERS: { id: 'xp_boosters', minRank: 'Gold III', minXp: 750 },
-    BLACK_CARD_UI: { id: 'black_card_ui', minRank: 'Platinum I', minXp: 850 },
-    VIP_OFFERS: { id: 'vip_offers', minRank: 'Platinum I', minXp: 850 },
-    ELITE_DEALS: { id: 'elite_deals', minRank: 'Diamond III', minXp: 1350 },
-    LEGENDARY_MODE: { id: 'legendary_mode', minRank: 'Legendary', minXp: 1450 },
+    // Bronze Unlocks
+    DAILY_SCRATCH_CARD: { id: 'scratch_card', minRank: 'Bronze I', minXp: 0 },
+    CUSTOM_ICONS: { id: 'custom_icons', minRank: 'Bronze III', minXp: 5000 },
+
+    // Silver Unlocks
+    SQUAD_WARS: { id: 'squad_wars', minRank: 'Silver I', minXp: 10000 },
+    DEAL_RADAR: { id: 'deal_radar', minRank: 'Silver II', minXp: 20000 },
+    AVATAR_FRAMES: { id: 'avatar_frames', minRank: 'Silver III', minXp: 35000 },
+
+    // Gold Unlocks
+    FLASH_DROPS: { id: 'flash_drops', minRank: 'Gold I', minXp: 50000 },
+    XP_MULTIPLIER: { id: 'xp_multiplier', minRank: 'Gold II', minXp: 75000 },
+    NEON_MODE: { id: 'neon_mode', minRank: 'Gold III', minXp: 100000 },
+
+    // Platinum Unlocks
+    BLACK_CARD_UI: { id: 'black_card_ui', minRank: 'Platinum I', minXp: 150000 },
+    SECRET_MENU: { id: 'secret_menu', minRank: 'Platinum II', minXp: 250000 },
+
+    // Diamond Unlocks
+    GOD_MODE: { id: 'god_mode', minRank: 'Diamond I', minXp: 600000 },
+    VERIFIED_BADGE: { id: 'verified_badge', minRank: 'Diamond I', minXp: 600000 },
+    LEGENDARY_SKINS: { id: 'legendary_skins', minRank: 'Diamond II', minXp: 800000 },
 };
 
 export const calculateRank = (xp: number) => {
@@ -72,11 +93,12 @@ export const addXP = async (userId: string, amount: number, source: string) => {
         };
     }
 
-    const oldXp = user.gamification.xp.current;
-    const newXp = oldXp + amount;
+    const oldXp = Number(user.gamification.xp.current || 0);
+    const amountNum = Number(amount);
+    const newXp = oldXp + amountNum;
 
     user.gamification.xp.current = newXp;
-    user.gamification.xp.lifetime += amount;
+    user.gamification.xp.lifetime = Number(user.gamification.xp.lifetime || 0) + amountNum;
 
     // Check Rank Up
     const newRankInfo = calculateRank(newXp);
@@ -131,7 +153,7 @@ export const queueXP = async (userId: string, amount: number, source: string, ti
 };
 
 export const claimXP = async (userId: string, rewardId: string) => {
-    const user = await User.findById(userId);
+    let user = await User.findById(userId);
     if (!user) throw new Error('User not found');
 
     const rewardIndex = user.gamification.pendingRewards.findIndex(r => r._id?.toString() === rewardId);
@@ -139,12 +161,19 @@ export const claimXP = async (userId: string, rewardId: string) => {
 
     const reward = user.gamification.pendingRewards[rewardIndex];
 
-    // Process the XP
+    // Process the XP (this saves the user)
     const result = await addXP(userId, reward.xp, reward.source);
 
+    // Re-fetch user to get latest version and avoid VersionError
+    user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
+
     // Remove from pending
-    user.gamification.pendingRewards.splice(rewardIndex, 1);
-    await user.save();
+    const currentRewardIndex = user.gamification.pendingRewards.findIndex(r => r._id?.toString() === rewardId);
+    if (currentRewardIndex !== -1) {
+        user.gamification.pendingRewards.splice(currentRewardIndex, 1);
+        await user.save();
+    }
 
     return result;
 };

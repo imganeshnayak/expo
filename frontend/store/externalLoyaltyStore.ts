@@ -316,7 +316,7 @@ interface ExternalLoyaltyStore {
   reminders: LoyaltyReminder[];
   insights: LoyaltyInsight | null;
   isLoading: boolean;
-  
+
   // Actions
   fetchPrograms: () => Promise<void>;
   addProgram: (program: Omit<ExternalLoyaltyProgram, 'id' | 'createdAt' | 'lastUpdated' | 'status'>) => void;
@@ -324,29 +324,30 @@ interface ExternalLoyaltyStore {
   deleteProgram: (id: string) => void;
   updateProgress: (id: string, newProgress: number) => void;
   redeemReward: (id: string) => void;
-  
+
   // Manual Updates
   addManualUpdate: (programId: string, update: Omit<ManualUpdate, 'id'>) => void;
   getManualUpdateHistory: (programId: string) => ManualUpdate[];
   deleteManualUpdate: (programId: string, updateId: string) => void;
-  
+
   // Templates
   getTemplates: () => LoyaltyTemplate[];
   createFromTemplate: (templateId: string, customization?: Partial<ExternalLoyaltyProgram>) => void;
-  
+
   // Insights & Analytics
   calculateInsights: () => void;
   getExpiringPrograms: () => ExternalLoyaltyProgram[];
   getBestRedemptionOpportunities: () => ExternalLoyaltyProgram[];
   getTotalPortfolioValue: () => number;
   getProximityAlerts: (userLocation?: { lat: number; lng: number }) => Array<{ program: ExternalLoyaltyProgram; distance?: number }>;
-  
+
   // Reminders
   generateReminders: () => void;
+  fetchNotifications: () => Promise<void>;
   markReminderRead: (id: string) => void;
   markAllRemindersRead: () => void;
   dismissReminder: (id: string) => void;
-  
+
   // Filters & Search
   filterByCategory: (category: string) => ExternalLoyaltyProgram[];
   filterByType: (type: ProgramType) => ExternalLoyaltyProgram[];
@@ -359,7 +360,7 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
   reminders: [],
   insights: null,
   isLoading: false,
-  
+
   // ============================================================================
   // FETCH PROGRAMS
   // ============================================================================
@@ -368,10 +369,10 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
     try {
       // In production, fetch from API
       // const response = await api.getExternalLoyaltyPrograms();
-      
+
       // For now, use sample data
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       set({ isLoading: false });
       get().calculateInsights();
       get().generateReminders();
@@ -380,7 +381,7 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       set({ isLoading: false });
     }
   },
-  
+
   // ============================================================================
   // ADD PROGRAM
   // ============================================================================
@@ -393,15 +394,15 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       lastUpdated: now,
       status: determineStatus(program.currentProgress, program.requiredForReward, program.expirationDate),
     };
-    
+
     set(state => ({
       programs: [...state.programs, newProgram],
     }));
-    
+
     get().calculateInsights();
     get().generateReminders();
   },
-  
+
   // ============================================================================
   // UPDATE PROGRAM
   // ============================================================================
@@ -410,23 +411,23 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       programs: state.programs.map(p =>
         p.id === id
           ? {
-              ...p,
-              ...updates,
-              lastUpdated: Date.now(),
-              status: determineStatus(
-                updates.currentProgress ?? p.currentProgress,
-                updates.requiredForReward ?? p.requiredForReward,
-                updates.expirationDate ?? p.expirationDate
-              ),
-            }
+            ...p,
+            ...updates,
+            lastUpdated: Date.now(),
+            status: determineStatus(
+              updates.currentProgress ?? p.currentProgress,
+              updates.requiredForReward ?? p.requiredForReward,
+              updates.expirationDate ?? p.expirationDate
+            ),
+          }
           : p
       ),
     }));
-    
+
     get().calculateInsights();
     get().generateReminders();
   },
-  
+
   // ============================================================================
   // DELETE PROGRAM
   // ============================================================================
@@ -435,25 +436,25 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       programs: state.programs.filter(p => p.id !== id),
       reminders: state.reminders.filter(r => r.programId !== id),
     }));
-    
+
     get().calculateInsights();
   },
-  
+
   // ============================================================================
   // UPDATE PROGRESS
   // ============================================================================
   updateProgress: (id, newProgress) => {
     const program = get().programs.find(p => p.id === id);
     if (!program) return;
-    
+
     get().updateProgram(id, { currentProgress: newProgress });
-    
+
     // Check if milestone reached
     if (newProgress >= program.requiredForReward) {
       get().generateReminders();
     }
   },
-  
+
   // ============================================================================
   // REDEEM REWARD
   // ============================================================================
@@ -464,21 +465,21 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       lastUpdated: Date.now(),
     });
   },
-  
+
   // ============================================================================
   // GET TEMPLATES
   // ============================================================================
   getTemplates: () => {
     return get().templates;
   },
-  
+
   // ============================================================================
   // CREATE FROM TEMPLATE
   // ============================================================================
   createFromTemplate: (templateId, customization = {}) => {
     const template = get().templates.find(t => t.id === templateId);
     if (!template) return;
-    
+
     const newProgram: Omit<ExternalLoyaltyProgram, 'id' | 'createdAt' | 'lastUpdated' | 'status'> = {
       merchantName: template.merchantName,
       merchantLogo: template.merchantLogo,
@@ -494,24 +495,24 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       autoSync: false,
       ...customization,
     };
-    
+
     get().addProgram(newProgram);
   },
-  
+
   // ============================================================================
   // CALCULATE INSIGHTS
   // ============================================================================
   calculateInsights: () => {
     const programs = get().programs;
-    
+
     if (programs.length === 0) {
       set({ insights: null });
       return;
     }
-    
+
     const activePrograms = programs.filter(p => p.status === 'active');
     const expiringPrograms = programs.filter(p => p.status === 'near_expiry');
-    
+
     // Calculate total potential savings
     const totalSavings = programs.reduce((sum, p) => {
       if (p.status === 'active' || p.status === 'near_expiry') {
@@ -523,7 +524,7 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       }
       return sum;
     }, 0);
-    
+
     // Find most used category
     const categoryCount: Record<string, number> = {};
     programs.forEach(p => {
@@ -531,8 +532,8 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
     });
     const mostUsedCategory = Object.keys(categoryCount).reduce((a, b) =>
       categoryCount[a] > categoryCount[b] ? a : b
-    , Object.keys(categoryCount)[0] || 'Unknown');
-    
+      , Object.keys(categoryCount)[0] || 'Unknown');
+
     // Find preferred program type
     const typeCount: Record<ProgramType, number> = { stamps: 0, points: 0, tiers: 0, visits: 0 };
     programs.forEach(p => {
@@ -541,27 +542,27 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
     const preferredType = (Object.keys(typeCount) as ProgramType[]).reduce((a, b) =>
       typeCount[a] > typeCount[b] ? a : b
     );
-    
+
     // Find top recommendation
     const readyToRedeem = programs.filter(p =>
       p.currentProgress >= p.requiredForReward && p.status === 'active'
     );
     const topRecommendation = readyToRedeem.length > 0
       ? {
-          programId: readyToRedeem[0].id,
-          merchantName: readyToRedeem[0].merchantName,
-          reason: 'Reward ready to redeem!',
-          estimatedValue: estimateRewardValue(readyToRedeem[0]),
-        }
+        programId: readyToRedeem[0].id,
+        merchantName: readyToRedeem[0].merchantName,
+        reason: 'Reward ready to redeem!',
+        estimatedValue: estimateRewardValue(readyToRedeem[0]),
+      }
       : expiringPrograms.length > 0
-      ? {
+        ? {
           programId: expiringPrograms[0].id,
           merchantName: expiringPrograms[0].merchantName,
           reason: 'Expiring soon - use it before it expires!',
           estimatedValue: estimateRewardValue(expiringPrograms[0]),
         }
-      : null;
-    
+        : null;
+
     const insights: LoyaltyInsight = {
       totalPrograms: programs.length,
       activePrograms: activePrograms.length,
@@ -574,22 +575,22 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
         preferredProgramType: preferredType,
       },
     };
-    
+
     set({ insights });
   },
-  
+
   // ============================================================================
   // GET EXPIRING PROGRAMS
   // ============================================================================
   getExpiringPrograms: () => {
     const now = Date.now();
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    
+
     return get().programs.filter(p =>
       p.expirationDate && p.expirationDate - now < sevenDays && p.status === 'active'
     );
   },
-  
+
   // ============================================================================
   // GET BEST REDEMPTION OPPORTUNITIES
   // ============================================================================
@@ -598,24 +599,25 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       .filter(p => p.currentProgress >= p.requiredForReward && p.status === 'active')
       .sort((a, b) => estimateRewardValue(b) - estimateRewardValue(a));
   },
-  
+
   // ============================================================================
   // GENERATE REMINDERS
   // ============================================================================
   generateReminders: () => {
     const programs = get().programs;
-    const reminders: LoyaltyReminder[] = [];
+    const existingReminders = get().reminders;
+    const generatedReminders: LoyaltyReminder[] = [];
     const now = Date.now();
-    
+
     programs.forEach(program => {
       if (!program.reminderEnabled) return;
-      
+
       // Expiring soon reminder
       if (program.expirationDate) {
         const daysUntilExpiry = Math.floor((program.expirationDate - now) / (24 * 60 * 60 * 1000));
-        
+
         if (daysUntilExpiry <= 7 && daysUntilExpiry > 0 && program.status === 'active') {
-          reminders.push({
+          generatedReminders.push({
             id: `rem_exp_${program.id}`,
             programId: program.id,
             merchantName: program.merchantName,
@@ -627,11 +629,11 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
           });
         }
       }
-      
+
       // Milestone reached
       if (program.currentProgress >= program.requiredForReward && program.status === 'active') {
         const progressOver = Math.floor(program.currentProgress / program.requiredForReward);
-        reminders.push({
+        generatedReminders.push({
           id: `rem_milestone_${program.id}`,
           programId: program.id,
           merchantName: program.merchantName,
@@ -642,11 +644,11 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
           actionRequired: true,
         });
       }
-      
+
       // Unused points reminder (30+ days)
       const daysSinceUpdate = Math.floor((now - program.lastUpdated) / (24 * 60 * 60 * 1000));
       if (daysSinceUpdate >= 30 && program.currentProgress > 0) {
-        reminders.push({
+        generatedReminders.push({
           id: `rem_unused_${program.id}`,
           programId: program.id,
           merchantName: program.merchantName,
@@ -657,12 +659,12 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
           actionRequired: false,
         });
       }
-      
+
       // Almost there reminder
       const progressPercent = (program.currentProgress / program.requiredForReward) * 100;
       if (progressPercent >= 80 && progressPercent < 100) {
         const remaining = program.requiredForReward - program.currentProgress;
-        reminders.push({
+        generatedReminders.push({
           id: `rem_almost_${program.id}`,
           programId: program.id,
           merchantName: program.merchantName,
@@ -674,17 +676,63 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
         });
       }
     });
-    
-    set({ reminders });
+
+    // Merge strategy: Keep existing if ID matches (preserve isRead), otherwise use new
+    const mergedReminders = generatedReminders.map(newReminder => {
+      const existing = existingReminders.find(r => r.id === newReminder.id);
+      if (existing) {
+        return {
+          ...newReminder,
+          isRead: existing.isRead, // Preserve read status
+          timestamp: existing.timestamp // Preserve original timestamp
+        };
+      }
+      return newReminder;
+    });
+
+    // Also keep backend notifications that aren't in the generated list (since they come from different source)
+    const backendReminders = existingReminders.filter(r => r.programId === 'backend_notification');
+    // Deduplicate in case backend reminders overlap (unlikely given different logic)
+
+    set({ reminders: [...mergedReminders, ...backendReminders] });
   },
-  
+
+  fetchNotifications: async () => {
+    try {
+      const { userService } = require('../services/api/userService');
+      const response = await userService.getNotifications();
+
+      if (response.data && response.data.notifications) {
+        const backendReminders = response.data.notifications.map((n: any) => ({
+          id: n._id,
+          programId: 'backend_notification',
+          merchantName: 'Merchant Update', // Ideally fetch merchant name, but title is fine
+          type: 'new_reward', // Default icon
+          message: `${n.title}: ${n.message}`,
+          timestamp: new Date(n.createdAt).getTime(),
+          isRead: false,
+          actionRequired: false,
+        }));
+
+        set(state => {
+          // Merge with existing reminders, avoiding duplicates
+          const existingIds = new Set(state.reminders.map(r => r.id));
+          const newReminders = backendReminders.filter((r: any) => !existingIds.has(r.id));
+          return { reminders: [...newReminders, ...state.reminders] };
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching backend notifications:', error);
+    }
+  },
+
   // ============================================================================
   // GENERATE MILESTONE REMINDER (called when progress updated)
   // ============================================================================
   generateMilestoneReminder: (programId: string) => {
     const program = get().programs.find(p => p.id === programId);
     if (!program) return;
-    
+
     const reminder: LoyaltyReminder = {
       id: `rem_new_${Date.now()}`,
       programId,
@@ -695,12 +743,12 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       isRead: false,
       actionRequired: true,
     };
-    
+
     set(state => ({
       reminders: [reminder, ...state.reminders],
     }));
   },
-  
+
   // ============================================================================
   // MARK REMINDER READ
   // ============================================================================
@@ -711,7 +759,7 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       ),
     }));
   },
-  
+
   // ============================================================================
   // MARK ALL REMINDERS READ
   // ============================================================================
@@ -720,7 +768,7 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       reminders: state.reminders.map(r => ({ ...r, isRead: true })),
     }));
   },
-  
+
   // ============================================================================
   // DISMISS REMINDER
   // ============================================================================
@@ -729,21 +777,21 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       reminders: state.reminders.filter(r => r.id !== id),
     }));
   },
-  
+
   // ============================================================================
   // FILTER BY CATEGORY
   // ============================================================================
   filterByCategory: (category) => {
     return get().programs.filter(p => p.category === category);
   },
-  
+
   // ============================================================================
   // FILTER BY TYPE
   // ============================================================================
   filterByType: (type) => {
     return get().programs.filter(p => p.programType === type);
   },
-  
+
   // ============================================================================
   // SEARCH PROGRAMS
   // ============================================================================
@@ -775,11 +823,11 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       programs: state.programs.map(p =>
         p.id === programId
           ? {
-              ...p,
-              currentProgress: newProgress,
-              manualUpdates: [newUpdate, ...p.manualUpdates],
-              lastUpdated: Date.now(),
-            }
+            ...p,
+            currentProgress: newProgress,
+            manualUpdates: [newUpdate, ...p.manualUpdates],
+            lastUpdated: Date.now(),
+          }
           : p
       ),
     }));
@@ -806,11 +854,11 @@ export const useExternalLoyaltyStore = create<ExternalLoyaltyStore>((set, get) =
       programs: state.programs.map(p =>
         p.id === programId
           ? {
-              ...p,
-              currentProgress: newProgress,
-              manualUpdates: p.manualUpdates.filter(u => u.id !== updateId),
-              lastUpdated: Date.now(),
-            }
+            ...p,
+            currentProgress: newProgress,
+            manualUpdates: p.manualUpdates.filter(u => u.id !== updateId),
+            lastUpdated: Date.now(),
+          }
           : p
       ),
     }));
@@ -856,18 +904,18 @@ function determineStatus(
   expirationDate?: number
 ): RewardStatus {
   const now = Date.now();
-  
+
   if (expirationDate && expirationDate < now) {
     return 'expired';
   }
-  
+
   if (expirationDate) {
     const daysUntilExpiry = (expirationDate - now) / (24 * 60 * 60 * 1000);
     if (daysUntilExpiry <= 7) {
       return 'near_expiry';
     }
   }
-  
+
   return 'active';
 }
 
@@ -877,14 +925,14 @@ function estimateRewardValue(program: ExternalLoyaltyProgram): number {
   if (match) {
     return parseInt(match[1]);
   }
-  
+
   // Default estimates based on program type
   if (program.programType === 'stamps') {
     return 100; // Estimate ₹100 for stamp rewards
   } else if (program.programType === 'points') {
     return program.pointsValue ? program.pointsValue * 0.1 : 50; // 10 paise per point
   }
-  
+
   return 50; // Default
 }
 
@@ -913,15 +961,15 @@ export const getDaysUntilExpiry = (expirationDate?: number): number | null => {
 
 export const formatExpiryDate = (expirationDate?: number): string => {
   if (!expirationDate) return 'No expiration';
-  
+
   const days = getDaysUntilExpiry(expirationDate);
   if (days === null) return 'No expiration';
-  
+
   if (days < 0) return 'Expired';
   if (days === 0) return 'Expires today';
   if (days === 1) return 'Expires tomorrow';
   if (days <= 7) return `Expires in ${days} days`;
-  
+
   return new Date(expirationDate).toLocaleDateString();
 };
 

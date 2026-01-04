@@ -33,16 +33,16 @@ export interface NotificationStats {
 export const notificationService = {
     // Send push notification
     async sendNotification(data: SendNotificationRequest): Promise<any> {
-        return await api.post<any>('/push-notifications', data);
+        return await api.post<any>('/api/push-notifications', data);
     },
 
     // Get notification history
     async getHistory(limit: number = 50): Promise<any> {
-        return await api.get<any>(`/push-notifications?limit=${limit}`);
+        return await api.get<any>(`/api/push-notifications?limit=${limit}`);
     },
 
     // Get notification statistics
     async getStats(): Promise<any> {
-        return await api.get<any>('/push-notifications/stats');
+        return await api.get<any>('/api/push-notifications/stats');
     },
 };

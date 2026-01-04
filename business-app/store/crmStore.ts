@@ -80,7 +80,7 @@ export interface CommunicationCampaign {
     body: string;
     actionUrl?: string;
   };
-  status: 'draft' | 'scheduled' | 'sent' | 'archived';
+  status: 'draft' | 'scheduled' | 'sent' | 'archived' | 'failed';
   scheduledFor?: number;
   sentAt?: number;
   performance: {
@@ -390,6 +390,42 @@ export const useCRMStore = create<CRMState>()(
 
           // Refresh segment counts
           get().refreshSegmentCounts();
+
+          // Fetch push notification history and merge with campaigns
+          try {
+            const historyResponse = await api.get<{ notifications: any[] }>('/api/push-notifications?limit=50');
+            const pushCampaigns = historyResponse.notifications.map((n: any) => ({
+              id: n._id,
+              name: n.title,
+              type: 'push' as const,
+              segmentIds: n.targetSegments || [],
+              message: {
+                title: n.title,
+                body: n.message,
+              },
+              status: n.status,
+              sentAt: n.sentAt ? new Date(n.sentAt).getTime() : undefined,
+              performance: {
+                sent: n.sentCount || 0,
+                delivered: n.deliveredCount || 0,
+                opened: 0,
+                clicked: 0,
+                converted: 0,
+              },
+              createdAt: new Date(n.createdAt).getTime(),
+            }));
+
+            set(state => {
+              // Filter out existing push campaigns to avoid duplicates
+              const otherCampaigns = state.campaigns.filter(c => c.type !== 'push');
+              return {
+                campaigns: [...otherCampaigns, ...pushCampaigns].sort((a, b) => b.createdAt - a.createdAt)
+              };
+            });
+            console.log(`📨 Loaded ${pushCampaigns.length} push notifications into history`);
+          } catch (error) {
+            console.error('Failed to load push history:', error);
+          }
 
           console.log(`👥 Loaded ${response.customers?.length || 0} customers from API`);
         } catch (error: any) {

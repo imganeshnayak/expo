@@ -1,63 +1,74 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Dimensions, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Mail, Lock, ArrowRight } from 'lucide-react-native';
-import { theme } from '../../constants/theme';
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react-native';
+import { theme, lightColors, darkColors, commonTheme } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
 import { useAuthStore } from '../../store/authStore';
-
-// ...
 
 export default function LoginScreen() {
     const router = useRouter();
     const { login, isLoading, error } = useAuthStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const colorScheme = useColorScheme();
+    const colors = colorScheme === 'dark' ? darkColors : lightColors;
+    const activeTheme = { ...commonTheme, colors };
 
     const handleLogin = async () => {
         if (!email || !password) return;
 
         try {
             await login(email, password);
-            router.replace('/analytics');
+            // Check if setup is complete by looking for businessType (set during setup)
+            const user = useAuthStore.getState().user;
+            // If user has businessType and address, they've completed setup
+            const isSetupComplete = user?.businessType && user?.address;
+            if (isSetupComplete) {
+                router.replace('/(tabs)/analytics');
+            } else {
+                router.replace('/(auth)/setup');
+            }
         } catch (err) {
             console.error('Login failed', err);
         }
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: activeTheme.colors.background }]}>
             <LinearGradient
-                colors={[theme.colors.background, theme.colors.surface, theme.colors.background]}
+                colors={[activeTheme.colors.background, activeTheme.colors.surface, activeTheme.colors.background]}
                 style={StyleSheet.absoluteFill}
             />
 
             {/* Background ambient lights */}
-            <View style={[styles.ambientLight, { top: -100, left: -100, backgroundColor: theme.colors.primary }]} />
-            <View style={[styles.ambientLight, { bottom: -100, right: -100, backgroundColor: theme.colors.info }]} />
+            <View style={[styles.ambientLight, { top: -100, left: -100, backgroundColor: activeTheme.colors.primary }]} />
+            <View style={[styles.ambientLight, { bottom: -100, right: -100, backgroundColor: activeTheme.colors.info }]} />
 
-            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint="light" />
+            <BlurView intensity={30} style={StyleSheet.absoluteFill} tint={colorScheme === 'dark' ? 'dark' : 'light'} />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.content}
             >
                 <View style={styles.header}>
-                    <Text style={styles.title}>Welcome Back</Text>
-                    <Text style={styles.subtitle}>Sign in to continue managing your business</Text>
+                    <Text style={[styles.title, { color: activeTheme.colors.text }]}>Welcome Back</Text>
+                    <Text style={[styles.subtitle, { color: activeTheme.colors.textSecondary }]}>Sign in to continue managing your business</Text>
                 </View>
 
                 <View style={styles.form}>
-                    <View style={styles.inputContainer}>
-                        <Mail color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                    <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                        <Mail color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { color: activeTheme.colors.text }]}
                             placeholder="Email Address"
-                            placeholderTextColor={theme.colors.textTertiary}
+                            placeholderTextColor={activeTheme.colors.textTertiary}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -65,24 +76,31 @@ export default function LoginScreen() {
                         />
                     </View>
 
-                    <View style={styles.inputContainer}>
-                        <Lock color={theme.colors.textTertiary} size={20} style={styles.inputIcon} />
+                    <View style={[styles.inputContainer, { backgroundColor: activeTheme.colors.surface, borderColor: activeTheme.colors.surfaceLight }]}>
+                        <Lock color={activeTheme.colors.textTertiary} size={20} style={styles.inputIcon} />
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { color: activeTheme.colors.text }]}
                             placeholder="Password"
-                            placeholderTextColor={theme.colors.textTertiary}
+                            placeholderTextColor={activeTheme.colors.textTertiary}
                             value={password}
                             onChangeText={setPassword}
-                            secureTextEntry
+                            secureTextEntry={!showPassword}
                         />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                            {showPassword ? (
+                                <EyeOff color={activeTheme.colors.textTertiary} size={20} />
+                            ) : (
+                                <Eye color={activeTheme.colors.textTertiary} size={20} />
+                            )}
+                        </TouchableOpacity>
                     </View>
 
                     {error && (
-                        <Text style={{ color: theme.colors.error, textAlign: 'center' }}>{error}</Text>
+                        <Text style={{ color: activeTheme.colors.error, textAlign: 'center' }}>{error}</Text>
                     )}
 
                     <TouchableOpacity style={styles.forgotPassword}>
-                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                        <Text style={[styles.forgotPasswordText, { color: activeTheme.colors.primary }]}>Forgot Password?</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -91,7 +109,7 @@ export default function LoginScreen() {
                         disabled={isLoading}
                     >
                         <LinearGradient
-                            colors={theme.colors.gradientPrimary}
+                            colors={activeTheme.colors.gradientPrimary}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={styles.buttonGradient}
@@ -102,9 +120,9 @@ export default function LoginScreen() {
                     </TouchableOpacity>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Don't have an account? </Text>
+                        <Text style={[styles.footerText, { color: activeTheme.colors.textSecondary }]}>Don't have an account? </Text>
                         <TouchableOpacity onPress={() => router.push('/register' as any)}>
-                            <Text style={styles.linkText}>Sign Up</Text>
+                            <Text style={[styles.linkText, { color: activeTheme.colors.primary }]}>Sign Up</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

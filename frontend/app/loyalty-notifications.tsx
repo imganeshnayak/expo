@@ -13,22 +13,31 @@ import {
   useExternalLoyaltyStore,
   LoyaltyReminder,
 } from '../store/externalLoyaltyStore';
-import { theme } from '../constants/theme';
-
-const primaryColor = theme.colors.primary;
+import { useUserStore } from '../store/userStore';
+import { useAppTheme } from '../store/themeStore';
 
 export default function LoyaltyNotificationsScreen() {
   const router = useRouter();
+  const theme = useAppTheme();
+  const styles = getStyles(theme);
+
+  // Gating Logic
+  const { gamification } = useUserStore();
+
   const {
     reminders,
     programs,
     generateReminders,
+    fetchNotifications,
     markReminderRead,
     markAllRemindersRead,
   } = useExternalLoyaltyStore();
 
+  const [showHistory, setShowHistory] = React.useState(false);
+
   useEffect(() => {
     generateReminders();
+    fetchNotifications();
   }, []);
 
   const unreadReminders = reminders.filter(r => !r.isRead);
@@ -38,12 +47,12 @@ export default function LoyaltyNotificationsScreen() {
     if (!reminder.isRead) {
       markReminderRead(reminder.id);
     }
-    
+
     // Navigate to the program detail
     const program = programs.find(p => p.id === reminder.programId);
     if (program) {
       router.push({
-        pathname: '/manual-update' as any,
+        pathname: '/loyalty-detail' as any,
         params: { programId: program.id },
       });
     }
@@ -73,9 +82,9 @@ export default function LoyaltyNotificationsScreen() {
       case 'unused_points':
         return '#FF5722';
       case 'new_reward':
-        return primaryColor;
+        return theme.colors.primary;
       default:
-        return '#888';
+        return theme.colors.textSecondary;
     }
   };
 
@@ -120,7 +129,7 @@ export default function LoyaltyNotificationsScreen() {
           )}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
     </TouchableOpacity>
   );
 
@@ -144,7 +153,7 @@ export default function LoyaltyNotificationsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         {unreadReminders.length > 0 && (
@@ -190,26 +199,44 @@ export default function LoyaltyNotificationsScreen() {
           </View>
         )}
 
-        {/* Read Section */}
+        {/* Read Section - Collapsible */}
         {readReminders.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Earlier</Text>
-            {readReminders
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(reminder => (
-                <ReminderCard key={reminder.id} reminder={reminder} />
-              ))}
+            <TouchableOpacity
+              style={styles.historyToggle}
+              onPress={() => setShowHistory(!showHistory)}
+            >
+              <Text style={styles.historyToggleText}>
+                {showHistory ? 'Hide Earlier Notifications' : `Show earlier notifications (${readReminders.length})`}
+              </Text>
+              <Ionicons name={showHistory ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            {showHistory && (
+              <View style={{ marginTop: 12 }}>
+                {readReminders
+                  .sort((a, b) => b.timestamp - a.timestamp)
+                  .map(reminder => (
+                    <ReminderCard key={reminder.id} reminder={reminder} />
+                  ))}
+              </View>
+            )}
           </View>
         )}
 
-        {/* Empty State */}
-        {reminders.length === 0 && (
+        {/* Empty State - Only if no UNREAD and history hidden (or empty) */}
+        {unreadReminders.length === 0 && (!showHistory || readReminders.length === 0) && (
           <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={80} color="#ccc" />
-            <Text style={styles.emptyTitle}>No Notifications</Text>
+            <Ionicons name="notifications-off-outline" size={80} color={theme.colors.textSecondary} />
+            <Text style={styles.emptyTitle}>All Caught Up!</Text>
             <Text style={styles.emptyText}>
-              You'll see reminders about your loyalty programs here
+              {readReminders.length > 0 ? "You have read all your notifications." : "You'll see reminders about your loyalty programs here"}
             </Text>
+            {readReminders.length > 0 && !showHistory && (
+              <TouchableOpacity onPress={() => setShowHistory(true)} style={{ marginTop: 16 }}>
+                <Text style={styles.markAllRead}>View History</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -219,29 +246,29 @@ export default function LoyaltyNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: ReturnType<typeof useAppTheme>) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
   },
   markAllRead: {
     fontSize: 14,
     fontWeight: '600',
-    color: primaryColor,
+    color: theme.colors.primary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -250,22 +277,22 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: primaryColor,
+    color: theme.colors.primary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 11,
-    color: '#888',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   scrollView: {
@@ -277,25 +304,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     marginHorizontal: 16,
     marginBottom: 12,
   },
   reminderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
   },
   reminderUnread: {
-    borderColor: primaryColor,
+    borderColor: theme.colors.primary,
     borderWidth: 2,
-    backgroundColor: primaryColor + '08',
+    backgroundColor: theme.colors.primary + '08',
   },
   iconContainer: {
     width: 56,
@@ -316,19 +343,19 @@ const styles = StyleSheet.create({
   merchantName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text,
     flex: 1,
   },
   unreadDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: primaryColor,
+    backgroundColor: theme.colors.primary,
     marginLeft: 8,
   },
   reminderMessage: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -339,7 +366,7 @@ const styles = StyleSheet.create({
   },
   reminderTime: {
     fontSize: 12,
-    color: '#888',
+    color: theme.colors.textSecondary,
   },
   actionBadge: {
     backgroundColor: '#FF5722',
@@ -361,17 +388,111 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#666',
+    color: theme.colors.textSecondary,
     marginTop: 20,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   bottomPadding: {
     height: 40,
+  },
+  historyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  historyToggleText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+
+  // Locked State
+  lockedContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    marginTop: -40, // Offset for header
+  },
+  lockedIconBg: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 24,
+  },
+  lockedTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  lockedText: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  progressContainer: {
+    width: '100%',
+    backgroundColor: theme.colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 24,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: theme.colors.surfaceHighlight || '#333',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 4,
+  },
+  progressHint: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  lockedButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  lockedButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

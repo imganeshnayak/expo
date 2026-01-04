@@ -150,6 +150,7 @@ export const useAuthStore = create<AuthState>()(
         {
             name: 'uma-auth-storage',
             storage: createJSONStorage(() => AsyncStorage),
+            partialize: (state) => ({ user: state.user, token: state.token }),
         }
     )
 );

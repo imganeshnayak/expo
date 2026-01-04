@@ -4,28 +4,45 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
     ArrowLeft, Trophy, Lock, CheckCircle, Zap, Star, Info, X,
-    Target, Map, BrainCircuit, User, CreditCard, Award, Crown, Palette, Ban, Flame, ChevronRight
+    Target, Map, BrainCircuit, User, CreditCard, Award, Crown, Palette, Ban, Flame, ChevronRight,
+    Gift, Users, Moon, Sparkles, Gamepad2, Ticket, Eye, ShieldCheck, Ghost, Search,
+    Headset, Box, Copy
 } from 'lucide-react-native';
 import { theme as staticTheme } from '@/constants/theme';
 import { useAppTheme } from '@/store/themeStore';
 import { useUserStore } from '@/store/userStore';
 import { RANKS, XP_ACTIONS, FEATURE_UNLOCKS, type FeatureId } from '@/constants/gamification';
 import { XPBar } from '@/components/gamification/XPBar';
-import { DailyCheckInCard } from '@/components/gamification/DailyCheckInCard';
 
-// 1. Flattened Feature List (Single List, No Tiers)
-const ALL_FEATURES = [
-    { id: 'MISSIONS', name: 'Missions', xp: FEATURE_UNLOCKS.MISSIONS, icon: Target },
-    { id: 'UTOPIA_MAP', name: 'Map', xp: FEATURE_UNLOCKS.UTOPIA_MAP, icon: Map },
-    { id: 'AVATAR', name: 'Avatar', xp: FEATURE_UNLOCKS.AVATAR, icon: User },
-    { id: 'FLASH_DEALS', name: 'Flash Deals', xp: FEATURE_UNLOCKS.FLASH_DEALS, icon: Zap },
-    { id: 'SKILL_TREES', name: 'Skills', xp: FEATURE_UNLOCKS.SKILL_TREES, icon: BrainCircuit },
-    { id: 'PAY_LATER', name: 'Pay Later', xp: FEATURE_UNLOCKS.PAY_LATER, icon: CreditCard },
-    { id: 'LEADERBOARD', name: 'Rankings', xp: FEATURE_UNLOCKS.LEADERBOARD, icon: Award },
-    { id: 'XP_MULTIPLIER', name: '2x XP', xp: FEATURE_UNLOCKS.XP_MULTIPLIER, icon: Flame },
-    { id: 'PREMIUM_SKIN', name: 'Skins', xp: FEATURE_UNLOCKS.PREMIUM_SKIN, icon: Palette },
-    { id: 'NO_ADS', name: 'No Ads', xp: FEATURE_UNLOCKS.NO_ADS, icon: Ban },
-    { id: 'FOUNDERS_CLUB', name: 'Club', xp: FEATURE_UNLOCKS.FOUNDERS_CLUB, icon: Crown },
+// Feature Definition with Metadata - Exciting rewards at each tier!
+const FEATURE_META = [
+    // Bronze (Starter Perks)
+    { id: 'DAILY_SCRATCH_CARD', name: 'Daily Scratch Card', xp: FEATURE_UNLOCKS.DAILY_SCRATCH_CARD, icon: Sparkles, desc: 'Win XP & coin prizes daily!', rank: 'Bronze' },
+    { id: 'MISSIONS', name: 'Missions', xp: FEATURE_UNLOCKS.MISSIONS, icon: Target, desc: 'Available now! Complete for XP.', rank: 'Bronze' },
+    { id: 'VOUCHERS', name: 'Deal Vouchers', xp: FEATURE_UNLOCKS.VOUCHERS, icon: Ticket, desc: 'Claim exclusive discounts.', rank: 'Bronze' },
+
+    // Silver (Growing Benefits)
+    { id: 'LOYALTY_CARDS', name: 'Loyalty Cards', xp: FEATURE_UNLOCKS.LOYALTY_CARDS, icon: CreditCard, desc: 'Link & track store rewards.', rank: 'Silver' },
+    { id: 'DEAL_ALERTS', name: 'Deal Alerts', xp: FEATURE_UNLOCKS.DEAL_ALERTS, icon: Map, desc: 'Notifications for nearby deals.', rank: 'Silver' },
+    { id: 'EXCLUSIVE_DEALS', name: 'Exclusive Deals', xp: FEATURE_UNLOCKS.EXCLUSIVE_DEALS, icon: Star, desc: 'Silver-only special offers.', rank: 'Silver' },
+
+    // Gold (Premium Rewards)
+    { id: 'FLASH_DROPS', name: 'Flash Drops', xp: FEATURE_UNLOCKS.FLASH_DROPS, icon: Zap, desc: '15-min mega deal alerts.', rank: 'Gold' },
+    { id: 'PRIORITY_SUPPORT', name: 'Priority Support', xp: FEATURE_UNLOCKS.PRIORITY_SUPPORT, icon: Headset, desc: 'Skip the queue - VIP help.', rank: 'Gold' },
+    { id: 'XP_BOOST_1_5X', name: '1.5x XP Boost', xp: FEATURE_UNLOCKS.XP_BOOST_1_5X, icon: Flame, desc: 'Level up 50% faster!', rank: 'Gold' },
+
+    // Platinum (Elite Status)
+    { id: 'DOUBLE_DAILY', name: 'Double Daily', xp: FEATURE_UNLOCKS.DOUBLE_DAILY, icon: Copy, desc: '2x Scratch Cards per day.', rank: 'Platinum' },
+    { id: 'GIFT_MODE', name: 'Gift Mode', xp: FEATURE_UNLOCKS.GIFT_MODE, icon: Gift, desc: 'Send rewards to friends.', rank: 'Platinum' },
+    { id: 'MONTHLY_LOOT', name: 'Monthly Loot', xp: FEATURE_UNLOCKS.MONTHLY_LOOT, icon: Box, desc: 'Free Mystery Box/Month.', rank: 'Platinum' },
+
+    // Diamond (VIP Treatment)
+    { id: 'VIP_LOUNGE', name: 'VIP Lounge', xp: FEATURE_UNLOCKS.VIP_LOUNGE, icon: Crown, desc: 'Exclusive merchant events.', rank: 'Diamond' },
+    { id: 'PROFILE_AURA', name: 'Profile Aura', xp: FEATURE_UNLOCKS.PROFILE_AURA, icon: Sparkles, desc: 'Glowing profile effects.', rank: 'Diamond' },
+    { id: 'VERIFIED_BADGE', name: 'Verified Badge', xp: FEATURE_UNLOCKS.VERIFIED_BADGE, icon: ShieldCheck, desc: 'The prestigious checkmark.', rank: 'Diamond' },
+
+    // Legendary (The Ultimate)
+    { id: 'LEGENDARY_UI', name: 'Legendary Status', xp: FEATURE_UNLOCKS.LEGENDARY_UI, icon: Crown, desc: 'Custom theme & ultimate perks.', rank: 'Legendary' },
 ];
 
 const XP_INFO = [
@@ -66,35 +83,40 @@ export default function GamificationScreen() {
         }
     };
 
-    // Calculate progress to next feature
-    const nextFeature = ALL_FEATURES.find(f => xp.current < f.xp);
-
-    const colors = isUtopiaMode ? {
-        primary: '#00FFF0',
-        bg: '#0A0A0F',
-        surface: '#1A1A2E',
-        text: '#FFFFFF',
-        muted: '#666666',
-        success: '#00FF9D'
-    } : {
-        primary: theme.colors.primary,
-        bg: theme.colors.background,
-        surface: theme.colors.surface,
-        text: theme.colors.text,
-        muted: theme.colors.textSecondary,
-        success: theme.colors.success
+    // Group Features by Rank
+    const featuresByRank = {
+        Bronze: FEATURE_META.filter(f => f.rank === 'Bronze'),
+        Silver: FEATURE_META.filter(f => f.rank === 'Silver'),
+        Gold: FEATURE_META.filter(f => f.rank === 'Gold'),
+        Platinum: FEATURE_META.filter(f => f.rank === 'Platinum'),
+        Diamond: FEATURE_META.filter(f => f.rank === 'Diamond'),
+        Legendary: FEATURE_META.filter(f => f.rank === 'Legendary'),
     };
 
+    const getRankColor = (r: string) => {
+        switch (r) {
+            case 'Bronze': return '#CD7F32';
+            case 'Silver': return '#C0C0C0';
+            case 'Gold': return '#FFD700';
+            case 'Platinum': return '#E5E4E2';
+            case 'Diamond': return '#B9F2FF';
+            case 'Legendary': return '#FF4500'; // Red/Orange
+            default: return theme.colors.text;
+        }
+    };
+
+    const nextFeature = FEATURE_META.find(f => xp.current < f.xp);
+
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-                    <ArrowLeft size={24} color={colors.text} />
+                    <ArrowLeft size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>My Journey</Text>
+                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Journey</Text>
                 <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={10}>
-                    <Info size={24} color={colors.text} />
+                    <Info size={24} color={theme.colors.text} />
                 </TouchableOpacity>
             </View>
 
@@ -102,21 +124,21 @@ export default function GamificationScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
                 }
             >
 
                 {/* 1. Main Stats Card */}
-                <View style={[styles.card, { backgroundColor: colors.surface }]}>
+                <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
                     <View style={styles.cardHeader}>
                         <View>
-                            <Text style={[styles.rankTitle, { color: colors.primary }]}>{rank.name}</Text>
-                            <Text style={[styles.xpText, { color: colors.muted }]}>
+                            <Text style={[styles.rankTitle, { color: getRankColor(rank.league) }]}>{rank.name}</Text>
+                            <Text style={[styles.xpText, { color: theme.colors.textSecondary }]}>
                                 {xp.current.toLocaleString()} XP Total
                             </Text>
                         </View>
-                        <View style={[styles.iconBox, { backgroundColor: colors.bg }]}>
-                            <Trophy size={20} color={colors.primary} />
+                        <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
+                            <Trophy size={20} color={getRankColor(rank.league)} />
                         </View>
                     </View>
 
@@ -126,37 +148,37 @@ export default function GamificationScreen() {
 
                     {nextFeature && (
                         <View style={styles.nextUnlockRow}>
-                            <Text style={[styles.nextLabel, { color: colors.muted }]}>
-                                Next Reward: <Text style={{ color: colors.text, fontWeight: '700' }}>{nextFeature.name}</Text>
+                            <Text style={[styles.nextLabel, { color: theme.colors.textSecondary }]}>
+                                Next: <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{nextFeature.name}</Text>
                             </Text>
-                            <Text style={[styles.nextVal, { color: colors.primary }]}>
+                            <Text style={[styles.nextVal, { color: theme.colors.primary }]}>
                                 {nextFeature.xp - xp.current} XP left
                             </Text>
                         </View>
                     )}
                 </View>
 
-                {/* 2. Pending Rewards (New Section) */}
+                {/* 2. Pending Rewards */}
                 {pendingRewards && pendingRewards.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending Rewards</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Pending Rewards</Text>
                         {pendingRewards.map((reward) => (
-                            <View key={reward._id} style={[styles.rewardCard, { backgroundColor: colors.surface }]}>
+                            <View key={reward._id} style={[styles.rewardCard, { backgroundColor: theme.colors.surface }]}>
                                 <View style={styles.rewardInfo}>
-                                    <View style={[styles.rewardIcon, { backgroundColor: colors.bg }]}>
-                                        <Star size={16} color={colors.primary} />
+                                    <View style={[styles.rewardIcon, { backgroundColor: theme.colors.background }]}>
+                                        <Star size={16} color={theme.colors.primary} />
                                     </View>
                                     <View>
-                                        <Text style={[styles.rewardTitle, { color: colors.text }]}>{reward.title}</Text>
-                                        <Text style={[styles.rewardSource, { color: colors.muted }]}>From {reward.source}</Text>
+                                        <Text style={[styles.rewardTitle, { color: theme.colors.text }]}>{reward.title}</Text>
+                                        <Text style={[styles.rewardSource, { color: theme.colors.textSecondary }]}>From {reward.source}</Text>
                                     </View>
                                 </View>
                                 <TouchableOpacity
-                                    style={[styles.claimButton, { backgroundColor: colors.primary }]}
+                                    style={[styles.claimButton, { backgroundColor: theme.colors.primary }]}
                                     onPress={() => handleClaim(reward._id)}
                                     disabled={claimingId === reward._id}
                                 >
-                                    <Text style={[styles.claimText, { color: colors.bg }]}>
+                                    <Text style={[styles.claimText, { color: theme.colors.background }]}>
                                         {claimingId === reward._id ? '...' : `+${reward.xp} XP`}
                                     </Text>
                                 </TouchableOpacity>
@@ -165,86 +187,67 @@ export default function GamificationScreen() {
                     </View>
                 )}
 
-                {/* 3. Horizontal Rank Timeline (Single Line) */}
+                {/* 3. Timeline */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Rank Path</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankScroll}>
-                        {RANKS.map((r, i) => {
-                            const isUnlocked = xp.current >= r.xp;
-                            const isCurrent = r.name === rank.name;
-                            const isLast = i === RANKS.length - 1;
+                    <Text style={[styles.sectionTitle, { color: theme.colors.text, marginBottom: 20 }]}>Progression</Text>
 
-                            return (
-                                <View key={r.name} style={styles.rankStepContainer}>
-                                    <View style={[
-                                        styles.rankCircle,
-                                        {
-                                            backgroundColor: isCurrent ? colors.primary : (isUnlocked ? colors.surface : 'transparent'),
-                                            borderColor: isUnlocked ? colors.primary : colors.muted,
-                                            borderWidth: isUnlocked ? 0 : 1
-                                        }
-                                    ]}>
-                                        {isUnlocked ? (
-                                            <CheckCircle size={14} color={isCurrent ? colors.bg : colors.primary} />
-                                        ) : (
-                                            <Lock size={14} color={colors.muted} />
-                                        )}
-                                    </View>
-                                    <Text style={[
-                                        styles.rankName,
-                                        { color: isUnlocked ? colors.text : colors.muted, fontWeight: isCurrent ? '700' : '400' }
-                                    ]}>
-                                        {r.name}
+                    {Object.entries(featuresByRank).map(([rankName, features], index) => {
+                        const rankColor = getRankColor(rankName);
+                        // Check if ANY feature in this rank is unlocked to determine if rank started
+                        const isRankStarted = features.some(f => xp.current >= f.xp);
+                        // Check if ALL features in this rank are unlocked
+                        const isRankCompleted = features.every(f => xp.current >= f.xp);
+
+                        return (
+                            <View key={rankName} style={styles.timelineGroup}>
+                                {/* Rank Header */}
+                                <View style={styles.rankHeader}>
+                                    <View style={[styles.rankDot, { backgroundColor: isRankStarted ? rankColor : theme.colors.surfaceHighlight }]} />
+                                    <Text style={[styles.rankGroupTitle, { color: isRankStarted ? rankColor : theme.colors.textSecondary }]}>
+                                        {rankName} Phase
                                     </Text>
-                                    {!isLast && <View style={[styles.connector, { backgroundColor: colors.surface }]} />}
+                                    {isRankCompleted && <CheckCircle size={16} color={rankColor} style={{ marginLeft: 8 }} />}
                                 </View>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
 
-                {/* 4. Feature Grid (Single Grid) */}
-                <View style={styles.section}>
-                    <View style={styles.flexRow}>
-                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Feature Unlocks</Text>
-                        <Text style={[styles.countText, { color: colors.muted }]}>
-                            {unlockedFeatures.length}/{ALL_FEATURES.length} Unlocked
-                        </Text>
-                    </View>
+                                {/* Features */}
+                                <View style={[styles.rankContent, { borderLeftColor: isRankStarted ? rankColor : theme.colors.surfaceHighlight }]}>
+                                    {features.map((feature) => {
+                                        const isUnlocked = xp.current >= feature.xp;
+                                        const Icon = feature.icon;
 
-                    <View style={styles.grid}>
-                        {ALL_FEATURES.map((feature) => {
-                            const isUnlocked = canAccessFeature(feature.id as FeatureId);
-                            const Icon = feature.icon;
+                                        const handlePress = () => {
+                                            // Features are informational - no navigation needed
+                                        };
 
-                            return (
-                                <View
-                                    key={feature.id}
-                                    style={[
-                                        styles.gridItem,
-                                        {
-                                            backgroundColor: colors.surface,
-                                            borderColor: isUnlocked ? colors.primary : 'transparent',
-                                            borderWidth: isUnlocked ? 1 : 0,
-                                            opacity: isUnlocked ? 1 : 0.6
-                                        }
-                                    ]}
-                                >
-                                    <View style={styles.gridIconHeader}>
-                                        <Icon size={20} color={isUnlocked ? colors.primary : colors.muted} />
-                                        {isUnlocked ? (
-                                            <CheckCircle size={12} color={colors.primary} />
-                                        ) : (
-                                            <Text style={[styles.xpReq, { color: colors.muted }]}>{feature.xp / 1000}k</Text>
-                                        )}
-                                    </View>
-                                    <Text style={[styles.gridName, { color: colors.text }]} numberOfLines={1}>
-                                        {feature.name}
-                                    </Text>
+                                        return (
+                                            <TouchableOpacity
+                                                key={feature.id}
+                                                style={[styles.timelineItem, { opacity: isUnlocked ? 1 : 0.6 }]}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={[styles.timelineIconBox, { backgroundColor: isUnlocked ? theme.colors.primary + '20' : theme.colors.surface }]}>
+                                                    <Icon size={20} color={isUnlocked ? theme.colors.primary : theme.colors.textSecondary} />
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Text style={[styles.timelineTitle, { color: theme.colors.text }]}>{feature.name}</Text>
+                                                        {isUnlocked ? (
+                                                            <CheckCircle size={14} color={theme.colors.success} />
+                                                        ) : (
+                                                            <Text style={styles.xpReq}>{feature.xp}</Text>
+                                                        )}
+                                                    </View>
+                                                    <Text style={[styles.timelineDesc, { color: theme.colors.textSecondary }]}>
+                                                        {feature.desc}
+                                                    </Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
-                            );
-                        })}
-                    </View>
+                            </View>
+                        );
+                    })}
                 </View>
 
             </ScrollView>
@@ -252,18 +255,18 @@ export default function GamificationScreen() {
             {/* XP Guide Modal */}
             <Modal visible={showGuide} transparent animationType="fade" onRequestClose={() => setShowGuide(false)}>
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                    <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>How to earn XP</Text>
+                            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>How to earn XP</Text>
                             <TouchableOpacity onPress={() => setShowGuide(false)}>
-                                <X size={24} color={colors.text} />
+                                <X size={24} color={theme.colors.text} />
                             </TouchableOpacity>
                         </View>
                         {XP_INFO.map((item, i) => (
-                            <View key={i} style={[styles.xpRow, { borderBottomColor: colors.bg }]}>
-                                <Text style={[styles.xpLabel, { color: colors.text }]}>{item.label}</Text>
-                                <View style={[styles.xpPill, { backgroundColor: colors.bg }]}>
-                                    <Text style={[styles.xpVal, { color: colors.primary }]}>+{item.val}</Text>
+                            <View key={i} style={[styles.xpRow, { borderBottomColor: theme.colors.background }]}>
+                                <Text style={[styles.xpLabel, { color: theme.colors.text }]}>{item.label}</Text>
+                                <View style={[styles.xpPill, { backgroundColor: theme.colors.background }]}>
+                                    <Text style={[styles.xpVal, { color: theme.colors.primary }]}>+{item.val}</Text>
                                 </View>
                             </View>
                         ))}
@@ -293,9 +296,7 @@ const styles = StyleSheet.create({
 
     // Section
     section: { marginBottom: 24 },
-    flexRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
-    countText: { fontSize: 12 },
 
     // Rewards
     rewardCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, marginBottom: 12 },
@@ -306,19 +307,17 @@ const styles = StyleSheet.create({
     claimButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
     claimText: { fontSize: 12, fontWeight: '700' },
 
-    // Rank Path
-    rankScroll: { paddingRight: 20, alignItems: 'center' },
-    rankStepContainer: { flexDirection: 'row', alignItems: 'center' },
-    rankCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-    rankName: { fontSize: 13, marginRight: 12 },
-    connector: { width: 20, height: 2, marginRight: 12 },
-
-    // Grid
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    gridItem: { width: '31%', padding: 12, borderRadius: 16, height: 90, justifyContent: 'space-between' },
-    gridIconHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    xpReq: { fontSize: 10, fontWeight: '700' },
-    gridName: { fontSize: 12, fontWeight: '600' },
+    // Timeline
+    timelineGroup: { marginBottom: 4 },
+    rankHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    rankDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+    rankGroupTitle: { fontSize: 14, fontWeight: '700' },
+    rankContent: { borderLeftWidth: 2, marginLeft: 5, paddingLeft: 24, paddingBottom: 24 },
+    timelineItem: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
+    timelineIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    timelineTitle: { fontSize: 14, fontWeight: '600' },
+    timelineDesc: { fontSize: 12, marginTop: 2 },
+    xpReq: { fontSize: 10, fontWeight: '600', color: '#666' },
 
     // Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },

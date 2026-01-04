@@ -166,23 +166,23 @@ export const dealsService = {
     },
 
     // Claim a deal (requires auth)
-    async claimDeal(dealId: string): Promise<ApiResponse<any>> {
-        return api.post<any>(`/api/deals/${dealId}/claim`, {}, true);
+    async claimDeal(dealId: string, options: { skipGlobalAuthHandler?: boolean } = {}): Promise<ApiResponse<any>> {
+        return api.post<any>(`/api/deals/${dealId}/claim`, {}, true, options);
     },
 
     // Toggle favorite (requires auth)
-    async toggleFavorite(dealId: string): Promise<ApiResponse<{ isFavorited: boolean; message: string }>> {
-        return api.post<{ isFavorited: boolean; message: string }>(`/api/deals/${dealId}/favorite`, {}, true);
+    async toggleFavorite(dealId: string, options: { skipGlobalAuthHandler?: boolean } = {}): Promise<ApiResponse<{ isFavorited: boolean; message: string }>> {
+        return api.post<{ isFavorited: boolean; message: string }>(`/api/deals/${dealId}/favorite`, {}, true, options);
     },
 
     // Get user's favorite deals (requires auth)
-    async getFavorites(): Promise<ApiResponse<Deal[]>> {
-        return api.get<Deal[]>('/api/deals/favorites', true);
+    async getFavorites(options: { skipGlobalAuthHandler?: boolean } = {}): Promise<ApiResponse<Deal[]>> {
+        return api.get<Deal[]>('/api/deals/favorites', {}, true, options);
     },
 
     // Redeem a deal (for merchant app, requires auth)
-    async redeemDeal(redemptionCode: string): Promise<ApiResponse<any>> {
-        return api.post<any>('/api/deals/redeem', { redemptionCode }, true);
+    async redeemDeal(redemptionCode: string, options: { skipGlobalAuthHandler?: boolean } = {}): Promise<ApiResponse<any>> {
+        return api.post<any>('/api/deals/redeem', { redemptionCode }, true, options);
     },
 };
 

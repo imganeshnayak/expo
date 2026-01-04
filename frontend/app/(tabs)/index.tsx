@@ -8,25 +8,31 @@ import {
   Image,
   Dimensions,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import {
   MapPin,
   Bell,
   Star,
   Heart,
   ChevronRight,
+  BrainCircuit,
 } from 'lucide-react-native';
 import { useWalletStore } from '@/store/walletStore';
 import { useMissionStore } from '@/store/missionStore';
 import { theme as staticTheme } from '@/constants/theme';
 import { useUserStore } from '@/store/userStore';
 import { useAppTheme } from '@/store/themeStore';
+import { usePersonaStore } from '@/store/personaStore';
 import { XPBar } from '@/components/gamification/XPBar';
 import { DailyCheckInCard } from '@/components/gamification/DailyCheckInCard';
 import { dealsService, Deal } from '@/services/api';
 import { useExternalLoyaltyStore } from '@/store/externalLoyaltyStore';
+import { useAuth } from '../_layout';
+import { DEMO_DEALS } from '@/constants/demoData';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
@@ -61,29 +67,80 @@ export default function HomeScreen() {
   const { reminders } = useExternalLoyaltyStore();
   const unreadCount = reminders.filter(r => !r.isRead).length;
 
+  const { user } = useAuth();
+  const setUser = useUserStore((state) => state.setUser);
   const theme = useAppTheme();
+  // --- AI Context ---
+  const { context, currentMood, predictions } = usePersonaStore();
   const styles = getStyles(theme);
 
   React.useEffect(() => {
     loadDeals();
-    loadFavorites();
-  }, []);
+    if (user) {
+      loadFavorites();
+    } else {
+      setLikedDeals([]);
+    }
+  }, [user]);
 
   const loadDeals = async () => {
     try {
       const response = await dealsService.getDeals();
-      if (response.data) {
+      if (response.data && response.data.length > 0) {
         setDeals(response.data);
-        // Extract unique categories from deals
         const uniqueCategories = Array.from(new Set(response.data.map(d => d.category))).filter(Boolean);
+        setCategories(['All', ...uniqueCategories]);
+      } else {
+        // Use demo data as fallback
+        setDeals(DEMO_DEALS as any);
+        const uniqueCategories = Array.from(new Set(DEMO_DEALS.map(d => d.category))).filter(Boolean);
         setCategories(['All', ...uniqueCategories]);
       }
     } catch (error) {
       console.error('Failed to load deals', error);
+      // Use demo data on error
+      setDeals(DEMO_DEALS as any);
+      const uniqueCategories = Array.from(new Set(DEMO_DEALS.map(d => d.category))).filter(Boolean);
+      setCategories(['All', ...uniqueCategories]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Reorder Categories based on AI Context
+  React.useEffect(() => {
+    if (categories.length <= 1) return; // Only 'All' or empty
+
+    const sorted = [...categories];
+    // Remove 'All' temporarily
+    const all = sorted.shift();
+
+    sorted.sort((a, b) => {
+      const getScore = (cat: string) => {
+        const c = cat.toLowerCase();
+        // Morning priorities
+        if (context.timeOfDay === 'morning') {
+          if (c.includes('coffee') || c.includes('cafe') || c.includes('breakfast')) return 10;
+          if (c.includes('bar') || c.includes('pub')) return -5;
+        }
+        // Evening priorities
+        if (context.timeOfDay === 'evening') {
+          if (c.includes('dinner') || c.includes('bar') || c.includes('night') || c.includes('club')) return 10;
+          if (c.includes('coffee')) return -2;
+        }
+        // Mood priorities
+        if (currentMood === 'stressed' && (c.includes('spa') || c.includes('massage') || c.includes('wellness'))) return 15;
+        if (currentMood === 'energetic' && (c.includes('gym') || c.includes('sport'))) return 15;
+
+        return 0;
+      };
+      return getScore(b) - getScore(a);
+    });
+
+    if (all) sorted.unshift(all);
+    // Only update if different to avoid unused cycle (simple check)
+    setCategories(sorted);
+  }, [context, currentMood, deals]); // Re-run when context changes
 
   const loadFavorites = async () => {
     try {
@@ -146,18 +203,80 @@ export default function HomeScreen() {
     }
   };
 
-  // --- Components ---
+
+  // ... (in HomeScreen)
+
+  const handleUpdateLocation = async () => {
+    Alert.alert(
+      "Update Location",
+      "Do you want to use your current location?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Get Current Location",
+          onPress: async () => {
+            try {
+              const { status } = await Location.requestForegroundPermissionsAsync();
+              if (status !== 'granted') return;
+
+              const location = await Location.getCurrentPositionAsync({});
+              const { latitude, longitude } = location.coords;
+              const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+              if (geocode.length > 0) {
+                const address = `${geocode[0].city}, ${geocode[0].region}`;
+                if (user) {
+                  setUser({
+                    ...user,
+                    profile: {
+                      ...user.profile,
+                      location: {
+                        address: address,
+                        coordinates: [longitude, latitude]
+                      }
+                    } as any
+                  });
+                }
+              }
+            } catch (error) {
+              console.log('Location error', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // --- AI Context ---
+
+
+  const getDynamicGreeting = () => {
+    const hour = new Date().getHours();
+    const userName = user?.profile?.name || 'User';
+
+    if (currentMood === 'stressed') return `Relax & Unwind, ${userName}`;
+    if (currentMood === 'celebratory') return `Let's Party, ${userName}!`;
+
+    // Time-based greetings using actual current time
+    if (hour >= 5 && hour < 12) return `Good Morning, ${userName}`;
+    if (hour >= 12 && hour < 17) return `Good Afternoon, ${userName}`;
+    if (hour >= 17 && hour < 21) return `Good Evening, ${userName}`;
+    return `Good Night, ${userName}`;
+  };
 
   const Header = () => (
     <View style={styles.headerContainer}>
       <View style={styles.headerTopRow}>
-        <TouchableOpacity style={styles.locationPill}>
+        <TouchableOpacity style={styles.locationPill} onPress={handleUpdateLocation}>
           <MapPin size={14} color={theme.colors.primary} />
-          <Text style={styles.locationText}>Downtown Area</Text>
+          <Text style={styles.locationText}>{user?.profile?.location?.address || 'Set Location'}</Text>
           <ChevronRight size={12} color={theme.colors.textSecondary} />
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
+          {/* AI Badge */}
+
+
           <XPBar compact />
           <TouchableOpacity
             style={styles.iconButton}
@@ -170,7 +289,10 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.greetingContainer}>
-        <Text style={styles.greetingMain}>Discover Deals</Text>
+        <Text style={styles.greetingMain}>{getDynamicGreeting()}</Text>
+        <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>
+          {predictions.nextLikelyActivity ? `Suggested: ${predictions.nextLikelyActivity}` : 'Explore the best around you'}
+        </Text>
       </View>
     </View>
   );
@@ -180,7 +302,10 @@ export default function HomeScreen() {
     <TouchableOpacity
       activeOpacity={0.9}
       style={styles.featuredCard}
-      onPress={() => router.push(`/deal/${deal._id}` as any)}
+      onPress={() => {
+        console.log('Navigating to deal:', deal._id);
+        router.push(`/deal/${deal._id}` as any);
+      }}
     >
       <Image source={{ uri: deal.images[0] || 'https://via.placeholder.com/300' }} style={styles.featuredImage} resizeMode="cover" />
       <View style={styles.featuredOverlay} />
@@ -226,7 +351,10 @@ export default function HomeScreen() {
     <TouchableOpacity
       style={styles.nearbyRow}
       activeOpacity={0.7}
-      onPress={() => router.push(`/deal/${deal._id}` as any)}
+      onPress={() => {
+        console.log('Navigating to deal:', deal._id);
+        router.push(`/deal/${deal._id}` as any);
+      }}
     >
       <Image source={{ uri: deal.images[0] || 'https://via.placeholder.com/100' }} style={styles.nearbyImage} />
       <View style={styles.nearbyInfo}>
@@ -281,7 +409,9 @@ export default function HomeScreen() {
           {/* Featured Section */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Featured Deals</Text>
-            <Text style={styles.sectionLink}>View All</Text>
+            <TouchableOpacity onPress={() => router.push('/category/all')}>
+              <Text style={styles.sectionLink}>View All</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -310,6 +440,17 @@ export default function HomeScreen() {
           </View>
 
         </ScrollView>
+
+        {/* Floating Utopia AI Button */}
+        <TouchableOpacity
+          style={styles.floatingAIButton}
+          onPress={() => router.push('/utopia-ai' as any)}
+          activeOpacity={0.9}
+        >
+          <View style={styles.floatingAIGradient}>
+            <BrainCircuit size={24} color="#FFF" />
+          </View>
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
@@ -750,5 +891,27 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   chevronContainer: {
     padding: 8,
-  }
+  },
+  // Floating AI Button
+  floatingAIButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  floatingAIGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
